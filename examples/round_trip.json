@@ -1,0 +1,132 @@
+{
+  "schema_version": "1.0",
+  "example_type": "synthetic_design_example_not_research_data",
+  "student_profile": {
+    "student_id": "S023",
+    "class_id": "DEMO-CLASS",
+    "grade": "demonstration cohort",
+    "language": "en",
+    "accessibility_needs": []
+  },
+  "ai_request": {
+    "request_id": "REQ-DEMO-001",
+    "student_id": "S023",
+    "student_state": {
+      "state_version": 1,
+      "skills": [{"id": "sign_change", "status": "unknown"}],
+      "misconceptions": [],
+      "evidence_refs": ["TRACE-DIAG-001:Q00"]
+    },
+    "confirmed_trace": {
+      "schema_version": "1.0",
+      "trace_id": "TRACE-DIAG-001",
+      "trace_version": 1,
+      "student_id": "S023",
+      "package_ref": {"package_id": "PKG-S023-000", "version": 1},
+      "record_status": "confirmed",
+      "confirmed_by": "DEMO-TEACHER",
+      "visits": [{"visit_no": 1, "task_id": "Q00"}],
+      "attempts": [
+        {"visit_no": 1, "task_id": "Q00", "first_answer": "B", "hint_level": 0, "retry_answer": null, "completion_status": "completed"}
+      ],
+      "feedback": {"difficulty": "slightly_hard", "comment": "I am unsure when signs change."}
+    },
+    "task_context": [
+      {
+        "package_id": "PKG-S023-000",
+        "package_version": 1,
+        "id": "Q00",
+        "prompt": "Solve x + 2 = 6.",
+        "options": [{"id": "A", "text": "x = 4"}, {"id": "B", "text": "x = 8"}, {"id": "C", "text": "Another answer or unsure"}],
+        "correct_option": "A"
+      }
+    ],
+    "constraints": {
+      "unit": "one-variable linear equations",
+      "goals": ["Use the same operation on both sides to isolate x"],
+      "excluded_topics": ["quadratic equations"],
+      "offline_days": 3,
+      "page_limits": {"student_book": 6, "record_sheet": 1},
+      "max_hint_level": 2,
+      "language": "en",
+      "paper_size": "A4",
+      "print_mode": "black_white",
+      "max_nodes": 12,
+      "allow_cycles": false
+    },
+    "content_catalog": [],
+    "content_mode": "illustrative_generated_content_requires_validation"
+  },
+  "ai_response": {
+    "schema_version": "1.0",
+    "request_id": "REQ-DEMO-001",
+    "diagnosis_proposals": [
+      {
+        "skill": "sign_change",
+        "status": "hypothesis_needs_verification",
+        "evidence_refs": ["TRACE-DIAG-001:Q00"],
+        "explanation": "The selected answer is consistent with adding instead of subtracting. One response is not enough to establish a persistent misconception."
+      }
+    ],
+    "plan": {
+      "entry_node": "Q01",
+      "nodes": [
+        {
+          "id": "Q01",
+          "type": "choice_question",
+          "skill": "sign_change",
+          "prompt": "Solve x + 3 = 7. Record your first answer before using hints. Follow the route for your first answer.",
+          "options": [{"id": "A", "text": "x = 4"}, {"id": "B", "text": "x = 10"}, {"id": "C", "text": "Another answer or unsure"}],
+          "correct_option": "A",
+          "hints": ["Try to leave x alone on the left.", "Subtract 3 from both sides."],
+          "routes": [{"answer": "A", "next": "Q02"}, {"answer": "B", "next": "R01"}, {"answer": "C", "next": "R02"}],
+          "source": "synthetic author-created example",
+          "review_status": "requires_implementation_validation"
+        },
+        {"id": "R01", "type": "explanation", "text": "Subtract 3 from both sides: x + 3 - 3 = 7 - 3, so x = 4.", "next": "Q02"},
+        {"id": "R02", "type": "explanation", "text": "Which number plus 3 makes 7? Subtracting the same amount from both sides preserves equality.", "next": "Q02"},
+        {
+          "id": "Q02",
+          "type": "short_question",
+          "skill": "sign_change",
+          "prompt": "Solve x + 5 = 12. Record your answer, then continue to END.",
+          "correct_answer": "7",
+          "hints": ["Apply the same operation to both sides.", "Subtract 5 from both sides."],
+          "next": "END",
+          "source": "synthetic author-created example",
+          "review_status": "requires_implementation_validation"
+        },
+        {"id": "END", "type": "finish", "text": "Check your visit order and answer record. Return the record sheet to your teacher."}
+      ]
+    },
+    "adaptation_notes": [
+      {"evidence_ref": "TRACE-DIAG-001:Q00", "change": "Include a branch about applying the same operation on both sides and a new transfer question."}
+    ]
+  },
+  "returned_trace": {
+    "schema_version": "1.0",
+    "trace_id": "TRACE-ROUND-001",
+    "trace_version": 1,
+    "student_id": "S023",
+    "package_ref": {"package_id": "PKG-S023-001", "version": 1},
+    "record_status": "confirmed",
+    "confirmed_by": "DEMO-TEACHER",
+    "visits": [
+      {"visit_no": 1, "task_id": "Q01"},
+      {"visit_no": 2, "task_id": "R01"},
+      {"visit_no": 3, "task_id": "Q02"},
+      {"visit_no": 4, "task_id": "END"}
+    ],
+    "attempts": [
+      {"visit_no": 1, "task_id": "Q01", "first_answer": "B", "hint_level": 1, "retry_answer": null, "completion_status": "completed"},
+      {"visit_no": 3, "task_id": "Q02", "first_answer": "7", "hint_level": 0, "retry_answer": null, "completion_status": "completed"}
+    ],
+    "feedback": {"difficulty": "manageable", "comment": "The explanation helped."}
+  },
+  "next_round_design_note": {
+    "evidence_refs": ["TRACE-ROUND-001:Q01", "TRACE-ROUND-001:Q02"],
+    "interpretation": "One independent correct answer after support is encouraging but does not establish stable mastery.",
+    "planned_change": "Use new questions to check independent performance, then progress if evidence supports it.",
+    "status": "design_illustration_not_an_executed_second_ai_call"
+  }
+}

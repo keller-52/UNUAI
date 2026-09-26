@@ -34,9 +34,18 @@ PAPER AI 最自然地对应：
 
 - [竞赛章程整理](docs/competition_rules.md)
 - [PAPER AI 项目构想](docs/project_idea.md)
+- [程序框架与模块职责](docs/system_architecture.md)
+- [完整操作流程与纸张设计](docs/operation_workflow.md)
+- [数据协议与 AI 接口](docs/data_contracts.md)
+- [JSON 往返示例](examples/round_trip.json)
+- [研究问题、实验与证据计划](docs/research_plan.md)
+- [参赛材料内容框架](docs/submission_framework.md)
+- [实施路线与任务清单](docs/implementation_roadmap.md)
 
 ## 当前阶段
 
-项目处于 **概念收敛 / 研究问题定义阶段**。接下来重点不是继续堆功能，而是验证最核心的问题：
+截至 2026-09-26，已整理构想、系统流程、数据接口、实验设计及参赛材料框架；**仍处于设计阶段，尚未实现原型或完成实验**。新增 JSON 为虚构说明样例。
+
+建议先阅读操作流程，再看程序框架、数据协议和实施路线；准备交件时以参赛材料框架逐项核对。内部设计文档使用中文，正式提交及演示使用英文。下一步验证最核心的问题：
 
 > **How much of an adaptive AI tutor can be compiled into paper, and how infrequently does AI need to appear while still preserving meaningful personalization?**
