@@ -11,6 +11,8 @@ fs.mkdirSync(output,{recursive:true});
   const page=await browser.newPage({viewport:{width:1440,height:1050}}),errors=[];
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto(process.env.PAPER_TEST_URL||'http://127.0.0.1:8765');
+  // Module parse errors otherwise look like an unrelated seed-button timeout.
+  assert.deepEqual(errors,[],'Teacher page must load without JavaScript errors');
   await page.click('#seed-button');await page.waitForFunction(()=>document.querySelector('#student-select').options.length>=2);
   await page.selectOption('#student-select','S-DEMO-A');
   await page.screenshot({path:output+'/overview.png',fullPage:true});
@@ -24,6 +26,20 @@ fs.mkdirSync(output,{recursive:true});
    assert.equal(await print.getAttribute('body','data-error'),null,await print.locator('#print-error').innerText());
    await print.pdf({path:`${output}/${view}.pdf`,format:'A4',preferCSSPageSize:true,printBackground:true});
    if(view==='booklet')await print.screenshot({path:output+'/print-preview.png',fullPage:true});
+   await print.close();
+  }
+  // Isolated responses exercise the overflow guard without changing issued data.
+  for(const field of ['title','coach_note']){
+   const oversized=structuredClone(pkg);
+   if(field==='title')oversized.plan.title='Long learning title '.repeat(300);
+   else oversized.plan.nodes.find(n=>n.type==='explanation').coach_note='Long coaching explanation. '.repeat(500);
+   const print=await browser.newPage();
+   await print.route('**/api/packages/'+pkg.id,route=>route.fulfill({json:oversized}));
+   await print.goto(`http://127.0.0.1:8765/print.html?id=${pkg.id}&view=booklet`);
+   await print.waitForFunction(()=>document.body.dataset.ready||document.body.dataset.error);
+   assert.equal(await print.getAttribute('body','data-error'),'1');
+   assert.match(await print.locator('#print-error').innerText(),/page boundary/);
+   assert.equal(await print.locator('#print-button').isDisabled(),true);
    await print.close();
   }
   await page.click('#collect-button');await page.click('#sample-scan-button');

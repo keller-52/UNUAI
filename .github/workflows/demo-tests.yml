@@ -24,6 +24,11 @@ jobs:
           node-version: '22'
       - name: Core and API tests
         run: python -m unittest discover -s demo/tests -p 'test_*.py' -v
+      - name: Browser module syntax
+        run: |
+          for file in demo/static/*.js; do
+            node --input-type=module --check < "$file"
+          done
       - name: Install test-only image and browser tools
         run: |
           npm install --no-save playwright @napi-rs/canvas

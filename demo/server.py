@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Local, single-teacher PAPER AI prototype. Python 3.10+, no pip dependencies."""
 import argparse
+from contextlib import contextmanager
 import copy
 import json
 import os
@@ -42,10 +43,15 @@ class Store:
             db.execute("CREATE TABLE IF NOT EXISTS traces (package_id TEXT PRIMARY KEY, revision INTEGER NOT NULL, data TEXT NOT NULL, evaluation TEXT NOT NULL)")
             db.execute("CREATE TABLE IF NOT EXISTS trace_history (package_id TEXT, revision INTEGER, data TEXT, evaluation TEXT, PRIMARY KEY(package_id, revision))")
 
+    @contextmanager
     def connect(self):
         db = sqlite3.connect(str(self.path), timeout=30)
         db.row_factory = sqlite3.Row
-        return db
+        try:
+            with db:
+                yield db
+        finally:
+            db.close()
 
     def get(self, table, key):
         require(table in ("students", "packages"), "Invalid table")

@@ -9,11 +9,30 @@ import urllib.request
 import urllib.error
 from unittest.mock import patch
 import io
+import sqlite3
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from core import (BANK, ValidationError, compile_plan, demo_proposal, state_for,
                   validate_plan, validate_proposal, evaluate_trace, public_package)
-from server import make_server, PROVIDER, ai_plan
+from server import make_server, PROVIDER, ai_plan, Store
+
+
+class StoreConnectionTests(unittest.TestCase):
+    def test_connection_commits_rolls_back_and_closes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = Store(Path(directory) / 'connections.db')
+            with store.connect() as db:
+                db.execute("INSERT INTO students VALUES (?, ?)", ('saved', '{}'))
+            with self.assertRaises(sqlite3.ProgrammingError):
+                db.execute('SELECT 1')
+            with self.assertRaisesRegex(RuntimeError, 'rollback'):
+                with store.connect() as failed:
+                    failed.execute("INSERT INTO students VALUES (?, ?)", ('discarded', '{}'))
+                    raise RuntimeError('rollback')
+            with self.assertRaises(sqlite3.ProgrammingError):
+                failed.execute('SELECT 1')
+            with store.connect() as check:
+                self.assertEqual([row[0] for row in check.execute('SELECT id FROM students')], ['saved'])
 
 
 def profile(ready=False):
