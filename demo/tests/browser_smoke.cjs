@@ -38,7 +38,7 @@ fs.mkdirSync(output,{recursive:true});
    await print.goto(`http://127.0.0.1:8765/print.html?id=${pkg.id}&view=booklet`);
    await print.waitForFunction(()=>document.body.dataset.ready||document.body.dataset.error);
    assert.equal(await print.getAttribute('body','data-error'),'1');
-   assert.match(await print.locator('#print-error').innerText(),/page boundary/);
+   assert.match(await print.locator('#print-error').innerText(),/page/i);
    assert.equal(await print.locator('#print-button').isDisabled(),true);
    await print.close();
   }

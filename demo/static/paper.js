@@ -58,30 +58,97 @@ export function recordSVG(p,filled=null){
  svg+=t(65,997,'First answers, hint use and visit order are self-reported. Keep this sheet for scanning.',12);
  svg+=t(65,1019,'If you make a marking mistake, ask the teacher to correct it during review.',12);
  svg+=t(65,1042,'Please keep all four black corner markers visible in the photograph.',12);
- return svg+'</g></svg>';
+ return paperTranslate(svg+'</g></svg>',p.config?.language);
 }
 export function nodePage(id){return id==='END'?3:Number(id.slice(1));}
-function routeText(n){return n.routes.map(r=>`${r.answer} → ${r.next} (p. ${nodePage(r.next)})`).join('   ·   ');}
+function routeText(n){return n.routes.map(r=>`${esc(r.answer)} → <span data-target="${esc(r.next)}">${esc(r.next)}</span>`).join(' · ');}
 export function bookletHTML(p){
+ const count=p.plan.nodes.filter(n=>n.type==='choice_question').length;
  return p.plan.nodes.filter(n=>n.type==='choice_question').map((n,i)=>{
   const remedy=p.plan.nodes.find(x=>x.id===`R${i+1}`);
   return `<section class="print-page"><header class="print-head"><b>PAPER AI</b><span>${esc(p.student_id)} · Round ${p.round} · ${esc(p.id)} / v${p.version}</span></header>
-  <div class="print-kicker">${esc(p.mode==='live'?'AI-PLANNED LEARNING':'RULES DEMO / NO AI CALL')} · ${i+1} / 3</div>
+  <div class="print-kicker">${esc(p.mode==='live'?'AI-PLANNED LEARNING':'RULES DEMO / NO AI CALL')} · ${i+1} / ${count} · Day ${p.schedule?.find(x=>x.task_id===n.id)?.day||1}</div>
   <h1>${esc(p.plan.title)}</h1><p class="print-intro">${i===0?'Start at Q1. Record the first answer before looking at hints. Follow the route for your FIRST answer. Mark the visit order for each task you enter.':'Continue only if your previous task directs you here.'}</p>
-  <h2>${esc(n.id)} / ${esc(n.prompt)}</h2><div class="print-options">${n.options.map(o=>`<p><b>${o.id}</b> ${esc(o.text)}</p>`).join('')}</div>
-  <div class="work-space">Working space</div><div class="print-route">${esc(routeText(n))}</div>
+  <h2 data-node="${n.id}">${esc(n.id)} / ${esc(n.prompt)}</h2><div class="print-options">${n.options.map(o=>`<p><b>${o.id}</b> ${esc(o.text)}</p>`).join('')}</div>
+  <div class="work-space">Working space</div><div class="print-route">${routeText(n)}</div>
   <section class="print-hints"><h3>Hints — use only when needed</h3>${n.hints.map((h,j)=>`<p><b>${j+1}.</b> ${esc(h)}</p>`).join('')}<p>Mark the highest hint level you used: 0, 1 or 2.</p></section>
-  ${remedy?`<section class="print-remedy"><h3>${esc(remedy.id)} / Open only if directed</h3><p>${esc(remedy.text)}</p><p>${esc(remedy.coach_note)}</p><b>Continue to ${esc(remedy.next)} (p. ${nodePage(remedy.next)}).</b></section>`:`<section class="print-remedy"><h3>END / Finish</h3><p>Mark END in your visit order. Check your record sheet and return it to your teacher.</p></section>`}
+  ${remedy?`<section class="print-remedy" data-node="${remedy.id}"><h3>${esc(remedy.id)} / Open only if directed</h3><p>${esc(remedy.text)}</p><p>${esc(remedy.coach_note)}</p><b>Continue to <span data-target="${esc(remedy.next)}">${esc(remedy.next)}</span>.</b></section>`:`<section class="print-remedy" data-node="END"><h3>END / Finish</h3><p>Mark END in your visit order. Check your record sheet and return it to your teacher.</p></section>`}
   <footer>PAPER AI · Local prototype · Self-reported learning record · Page ${i+1}</footer></section>`;
  }).join('');
 }
 export function teacherHTML(p){
  return `<section class="print-page"><header class="print-head"><b>PAPER AI / TEACHER ONLY</b><span>${esc(p.id)} / v${p.version}</span></header><h1>Answer & route guide</h1><p>${esc(p.proposal.reason)}</p>
- ${p.plan.nodes.filter(n=>n.type==='choice_question').map(n=>`<section class="teacher-item"><h2>${esc(n.id)} · ${esc(n.prompt)}</h2><p><b>Answer: ${esc(n.correct_option)}</b> · Bank ${esc(n.bank_id)}</p><p>${esc(n.explanation)}</p><p>${esc(routeText(n))}</p></section>`).join('')}
+ ${p.plan.nodes.filter(n=>n.type==='choice_question').map(n=>`<section class="teacher-item"><h2 data-node="${n.id}">${esc(n.id)} · ${esc(n.prompt)}</h2><p><b>Answer: ${esc(n.correct_option)}</b> · Bank ${esc(n.bank_id)}</p><p>${esc(n.explanation)}</p><p>${routeText(n)}</p></section>`).join('')}
  <h3>Evidence references</h3><p>${esc(p.proposal.evidence_refs.join(', ')||'No baseline evidence yet.')}</p><h3>Source and verification</h3><p>Author-created arithmetic bank. Equations are checked deterministically. Review AI coach notes for educational quality.</p><p>Mode: ${esc(p.mode)} · Model: ${esc(p.audit.model||'none — rules demo')} · Compiler: ${esc(p.compiler_version)}</p><footer>Do not distribute this answer guide with the student packet.</footer></section>`;
 }
 export function paperHTML(p,view){
- if(view==='teacher')return teacherHTML(p);
+ if(view==='teacher')return paperTranslate(teacherHTML(p),p.config?.language);
  if(view==='record')return `<section class="print-page record-page">${recordSVG(p)}</section>`;
- return bookletHTML(p);
+ return paperTranslate(bookletHTML(p),p.config?.language);
+}
+
+const paperTerms={
+ 'PAPER AI / LEARNING RECORD':'PAPER AI / 学习记录', 'SYNTHETIC SAMPLE':'模拟样张', 'English / A4':'中文 / A4',
+ 'Fill circles completely with a dark pen. Do not erase your first answer.':'使用深色笔填满圆圈，不要擦掉首次答案。',
+ 'Mark visit order for every visited task. Leave unvisited rows completely blank.':'记录每个任务的访问顺序；未访问的任务整行留空。',
+ 'Hint: 0 = none, 1 = first hint, 2 = both. Retry is optional. Follow FIRST answer routes.':'提示：0 不使用，1 一级，2 两级。重试选填；按首次答案跳转。',
+ 'First answers, hint use and visit order are self-reported. Keep this sheet for scanning.':'首次答案、提示使用和访问顺序均由学生自报，请保留此纸用于扫描。',
+ 'If you make a marking mistake, ask the teacher to correct it during review.':'填涂错误请在校对时告知教师。',
+ 'Please keep all four black corner markers visible in the photograph.':'拍照时保留四角的黑色定位标记。',
+ 'Finish / no answer needed':'结束 / 无需作答','Read explanation / no answer needed':'阅读讲解 / 无需作答',
+ 'Start at Q1. Record the first answer before looking at hints. Follow the route for your FIRST answer. Mark the visit order for each task you enter.':'从 Q1 开始。先记录首次答案，再查看提示。按首次答案跳转，并记录所有任务的访问顺序。',
+ 'Continue only if your previous task directs you here.':'仅在上一任务要求时进入本页。',
+ 'Mark the highest hint level you used: 0, 1 or 2.':'填写使用的最高提示等级：0、1 或 2。',
+ 'Mark END in your visit order. Check your record sheet and return it to your teacher.':'记录 END 的访问顺序，检查记录纸并交给教师。',
+ 'Author-created arithmetic bank. Equations are checked deterministically. Review AI coach notes for educational quality.':'自编题库，方程答案由程序验算。请教师审核 AI 辅导内容。',
+ 'Do not distribute this answer guide with the student packet.':'教师答案请勿与学生材料一起发放。',
+ 'Hints — use only when needed':'提示——按需查看', 'Open only if directed':'仅按指示阅读', 'Working space':'演算区',
+ 'Answer &amp; route guide':'答案与路径指南', 'Evidence references':'证据引用', 'Source and verification':'来源与校验',
+ 'AI-PLANNED LEARNING':'AI 规划学习包', 'RULES DEMO / NO AI CALL':'规则演示 / 未调用 AI',
+ 'PAPER AI / TEACHER ONLY':'PAPER AI / 教师专用', 'Visit order':'访问顺序','First answer':'首次答案',
+ 'Self-reported learning record':'学生自报学习记录', 'Local prototype':'本地应用', 'Continue to':'继续前往',
+ 'Finish':'完成','Task':'任务','Retry':'重试','Hint':'提示','Round':'轮次','Page':'页','Day':'学习日',
+ 'Answer:':'答案：','Bank':'题库','Mode:':'模式：','Model:':'模型：','Compiler:':'编译器：',
+ 'Template':'模板','Sheet':'记录纸','none — rules demo':'无——规则演示'};
+export function paperTranslate(html,language){
+ if(language!=='zh')return html;
+ // Only translate text nodes; never rewrite IDs, attributes or student content fields.
+ return html.replace(/>([^<]+)</g,(all,value)=>{
+  for(const [en,zh] of Object.entries(paperTerms))value=value.split(en).join(zh);
+  return '>'+value+'<';
+ });
+}
+
+export function paginate(container,packages,view){
+ if(view==='record')return;
+ const originals=[...container.querySelectorAll('.print-page')];
+ for(const page of originals){
+  const group=page.dataset.package;
+  let current=page;
+  let remaining=[...page.children].filter(x=>!x.matches('footer,.print-head'));
+  remaining.forEach(block=>block.remove());
+  const header=page.querySelector('.print-head'),footer=page.querySelector('footer');
+  for(const block of remaining){
+   current.insertBefore(block,current.querySelector('footer'));
+   if(block.getBoundingClientRect().bottom<=current.querySelector('footer').getBoundingClientRect().top-8)continue;
+   const next=document.createElement('section');next.className='print-page';next.dataset.package=group;
+   if(header)next.append(header.cloneNode(true));next.append(footer.cloneNode(true));current.after(next);
+   next.insertBefore(block,next.querySelector('footer'));current=next;
+   if(block.getBoundingClientRect().bottom>current.querySelector('footer').getBoundingClientRect().top-8)
+    throw Error('A content block exceeds one page. Revise the draft before printing.');
+  }
+ }
+ for(const p of packages){
+  const pages=[...container.querySelectorAll('.print-page')].filter(x=>x.dataset.package===p.id);
+  if(view==='booklet'&&pages.length>p.config.max_pages)throw Error('Page budget exceeded: '+pages.length+' / '+p.config.max_pages);
+  const positions={};pages.forEach((page,i)=>page.querySelectorAll('[data-node]').forEach(n=>positions[n.dataset.node]=i+1));
+  pages.forEach((page,i)=>{
+   page.querySelector('footer').textContent=`PAPER AI · ${p.id} · ${p.config.language==='zh'?'页':'Page'} ${i+1} / ${pages.length}`;
+   page.querySelectorAll('[data-target]').forEach(n=>{n.textContent=n.dataset.target+' ('+(p.config.language==='zh'?'页 ':'p. ')+(positions[n.dataset.target]||positions[n.dataset.target.replace('R','Q')]||pages.length)+')';});
+  });
+ }
+ for(const page of container.querySelectorAll('.print-page')){
+  const limit=page.querySelector('footer').getBoundingClientRect().top-5;
+  for(const child of page.children)if(!child.matches('footer')&&child.getBoundingClientRect().bottom>limit)throw Error('Page overflow after route layout; revise the draft.');
+ }
 }

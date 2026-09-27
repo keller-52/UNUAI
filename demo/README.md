@@ -1,3 +1,5 @@
+> 当前实现已升级至 0.2；本页末尾“0.2：双语与日常操作”和 [0.2 状态](../docs/product_02_status.md)说明新增行为，前文固定三页/英文等 0.1 限制由该节替代。
+
 # PAPER AI Demo 0.1
 
 一个可本地启动的单教师原型，使用 Python 标准库、SQLite 和原生 HTML/CSS/JavaScript。运行应用不需要 npm、pip、云数据库或外部字体。
@@ -136,3 +138,15 @@ python demo/tests/live_smoke.py --run
 
 两轮正常调用，JSON 修复最多共四次请求。普通单元测试和浏览器测试不主动调用真实 AI。结果与待验项目见 [DeepSeek 验证记录](../docs/deepseek_validation.md)。
 
+
+## 0.2：双语与日常操作
+
+推荐双击 `start-demo.bat`（Windows）或运行 `sh demo/start-demo.sh`。命令行也可运行 `python demo/launch.py`，会打开浏览器；无需浏览器自动打开时加 `--no-browser`。首次隐藏输入密钥可运行 `python demo/launch.py --configure`。已有 `provider.json` 配置继续生效。
+
+右上角切换中文/英文界面；教学设置中的 Materials language 单独控制学习包语言。默认英文用于展示，中文用于调试。旧学习包不随界面切换改变。每轮可选 2–4 题，教师审核前可修改草稿辅导内容。
+
+概览页提供班级筛选、学生搜索、批量生成、合并打印及最近生成任务。批量生成使用当前教学设置和模式，真实模式会为每名学生分别调用 AI；部分失败保留已完成结果。刷新后先检查任务和已有学习包，不要直接重发。
+
+“下载完整备份”用于迁移与恢复；原来的 Export data 用于查看/分析，二者格式不同。恢复采取只合并、不覆盖策略，冲突时整批拒绝。在空数据库恢复可完整重建学习包和历史修订。恢复前快照保存在数据库同级的 `backups/` 目录。密钥需要在另一台电脑单独配置。
+
+实现范围与待验项：[0.2 状态](../docs/product_02_status.md)。扩展格式：[知识单元接口](../docs/unit_extension_contract.md)。

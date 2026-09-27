@@ -216,6 +216,21 @@ class APITests(unittest.TestCase):
         _,s=self.request('/api/students',{'label':'Page budget'})
         self.assertEqual(self.request('/api/generate',{'student_id':s['id'],'mode':'demo','config':{'max_pages':1}})[0],400)
 
+    def test_generation_dedup_and_draft_edits(self):
+        _,student=self.request('/api/students',{'label':'Workflow test'})
+        body={'student_id':student['id'],'mode':'demo','config':{'language':'zh','question_count':4},'request_id':'product-idempotency'}
+        status,package=self.request('/api/generate',body)
+        self.assertEqual(status,201)
+        status,repeated=self.request('/api/generate',body)
+        self.assertEqual(repeated['id'],package['id'])
+        edit={'plan_hash':package['plan_hash'],'title':'中文调试学习包'}
+        status,edited=self.request('/api/packages/'+package['id']+'/edit',edit)
+        self.assertEqual(status,200)
+        self.assertNotEqual(edited['plan_hash'],package['plan_hash'])
+        self.assertEqual(self.request('/api/packages/'+package['id']+'/edit',edit)[0],400)
+        self.request('/api/packages/'+package['id']+'/approve',{'reviewed':True,'plan_hash':edited['plan_hash']})
+        self.assertEqual(self.request('/api/packages/'+package['id']+'/discard',{'plan_hash':edited['plan_hash']})[0],400)
+
 
 class AIAdapterTests(unittest.TestCase):
     def setUp(self):
