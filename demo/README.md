@@ -43,6 +43,8 @@ python demo/server.py --port 8766
 
 ## 3. 接入真正的 AI
 
+官方 `api.deepseek.com` 请求显式关闭思考模式，将固定输出预算用于短 JSON 选题结果；其他提供商不发送这一专属字段。空响应或不合法提案最多修复一次，失败会明确提示。最新 Windows 双语、恢复和真实两轮结果见[0.2 本地验收](../docs/local_validation_02_results.md)。
+
 点击侧栏 **AI connection**，填写：
 
 - HTTPS API base URL，例如 `https://api.openai.com/v1`；填写到 `/v1`，不要再加 `/chat/completions`。

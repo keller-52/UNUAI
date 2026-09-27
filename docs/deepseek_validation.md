@@ -1,5 +1,7 @@
 # DeepSeek 接入与验证
 
+后续 Windows 0.2 真实两轮复测、空 JSON 问题及处理见[0.2 本地验收报告](local_validation_02_results.md)。
+
 日期：2026-09-27（Asia/Shanghai）；基于 main 的 `2a01701`，保留本地 AI 已提交的脚本语法和 SQLite 连接修复。
 
 ## 本轮实现

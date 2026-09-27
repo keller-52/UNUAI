@@ -228,11 +228,28 @@ class APITests(unittest.TestCase):
         self.assertEqual(status,200)
         self.assertNotEqual(edited['plan_hash'],package['plan_hash'])
         self.assertEqual(self.request('/api/packages/'+package['id']+'/edit',edit)[0],400)
+        self.assertEqual(self.request('/api/packages/'+package['id']+'/approve',{'reviewed':True,'plan_hash':package['plan_hash']})[0],400)
         self.request('/api/packages/'+package['id']+'/approve',{'reviewed':True,'plan_hash':edited['plan_hash']})
+        self.assertEqual(self.request('/api/packages/'+package['id']+'/edit',{'plan_hash':edited['plan_hash'],'title':'Rejected change'})[0],400)
         self.assertEqual(self.request('/api/packages/'+package['id']+'/discard',{'plan_hash':edited['plan_hash']})[0],400)
 
 
 class AIAdapterTests(unittest.TestCase):
+    def test_deepseek_thinking_is_scoped_to_official_host(self):
+        for base in ('https://api.deepseek.com', 'https://example.invalid/v1'):
+            provider=dict(self.provider,base_url=base)
+            proposal=demo_proposal(self.state,[])
+            with patch('server.urllib.request.urlopen',return_value=self.response(json.dumps(proposal))) as transport:
+                ai_plan(self.request,provider)
+            payload=json.loads(transport.call_args.args[0].data)
+            if base=='https://api.deepseek.com':self.assertEqual(payload['thinking'],{'type':'disabled'})
+            else:self.assertNotIn('thinking',payload)
+
+    def test_empty_ai_content_is_explicit_and_retry_bounded(self):
+        with patch('server.urllib.request.urlopen',side_effect=[self.response(''),self.response('')]) as transport:
+            with self.assertRaisesRegex(ValidationError,'empty JSON content'):ai_plan(self.request,self.provider)
+            self.assertEqual(transport.call_count,2)
+
     def setUp(self):
         self.state=state_for(profile(),[])
         self.request={"student_state":self.state}

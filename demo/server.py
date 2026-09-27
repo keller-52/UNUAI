@@ -142,6 +142,10 @@ def ai_plan(request_data, provider):
     for attempt in range(2):
         payload = {"model": provider["model"], "messages": messages,
                    "response_format": {"type": "json_object"}, "max_tokens": 2048}
+        # DeepSeek enables thinking by default. Reserve the bounded output budget
+        # for this small catalog-selection JSON; do not send vendor fields elsewhere.
+        if urlsplit(provider["base_url"]).hostname == "api.deepseek.com":
+            payload["thinking"] = {"type": "disabled"}
         req = urllib.request.Request(provider["base_url"].rstrip("/") + "/chat/completions",
                                      data=json.dumps(payload).encode(),
                                      headers={"Authorization": "Bearer " + provider["api_key"],
@@ -161,14 +165,15 @@ def ai_plan(request_data, provider):
         except (KeyError, IndexError, TypeError, json.JSONDecodeError):
             raise ValidationError("AI provider returned an unexpected response envelope") from None
         try:
+            require(bool(content.strip()), "AI returned empty JSON content (finish reason: " + str(body['choices'][0].get('finish_reason', 'unknown')) + ")")
             proposal = json.loads(content)
             validate_proposal(proposal, request_data["student_state"], count)
-            attempts.append({"content": content, "validation": "passed", "usage": body.get("usage")})
+            attempts.append({"content": content, "validation": "passed", "usage": body.get("usage"), "finish_reason": body['choices'][0].get('finish_reason')})
             return proposal, {"provider": provider["base_url"], "model": body.get("model", provider["model"]),
                               "prompt_version": PROMPT_VERSION, "system_prompt": system,
                               "attempts": attempts, "elapsed_seconds": round(time.monotonic()-started, 2)}
         except (json.JSONDecodeError, ValidationError) as exc:
-            attempts.append({"content": content, "validation": str(exc)})
+            attempts.append({"content": content, "validation": str(exc), "usage": body.get('usage'), "finish_reason": body['choices'][0].get('finish_reason')})
             messages += [{"role": "assistant", "content": content},
                          {"role": "user", "content": "Repair your JSON: " + str(exc)}]
     raise ValidationError("AI proposal failed validation twice. No package was issued. " + attempts[-1]["validation"])

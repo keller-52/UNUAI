@@ -103,7 +103,7 @@ const paperTerms={
  'Author-created arithmetic bank. Equations are checked deterministically. Review AI coach notes for educational quality.':'自编题库，方程答案由程序验算。请教师审核 AI 辅导内容。',
  'Do not distribute this answer guide with the student packet.':'教师答案请勿与学生材料一起发放。',
  'Hints — use only when needed':'提示——按需查看', 'Open only if directed':'仅按指示阅读', 'Working space':'演算区',
- 'Answer &amp; route guide':'答案与路径指南', 'Evidence references':'证据引用', 'Source and verification':'来源与校验',
+ 'Answer &amp; route guide':'答案与路径指南', 'Answer & route guide':'答案与路径指南', 'No baseline evidence yet.':'暂无初始诊断证据。', 'Evidence references':'证据引用', 'Source and verification':'来源与校验',
  'AI-PLANNED LEARNING':'AI 规划学习包', 'RULES DEMO / NO AI CALL':'规则演示 / 未调用 AI',
  'PAPER AI / TEACHER ONLY':'PAPER AI / 教师专用', 'Visit order':'访问顺序','First answer':'首次答案',
  'Self-reported learning record':'学生自报学习记录', 'Local prototype':'本地应用', 'Continue to':'继续前往',
@@ -121,6 +121,18 @@ export function paperTranslate(html,language){
 
 export function paginate(container,packages,view){
  if(view==='record')return;
+ // Teacher routes refer to the student's booklet, not the teacher guide pages.
+ const bookletPositions={};
+ if(view==='teacher')for(const p of packages){
+  const reference=document.createElement('div');reference.style.cssText='position:absolute;visibility:hidden;left:0;top:0';
+  reference.innerHTML=paperHTML(p,'booklet');for(const page of reference.children)page.dataset.package=p.id;
+  document.body.append(reference);
+  try{
+   paginate(reference,[p],'booklet');const positions={};
+   reference.querySelectorAll('.print-page').forEach((page,i)=>page.querySelectorAll('[data-node]').forEach(n=>positions[n.dataset.node]=i+1));
+   bookletPositions[p.id]=positions;
+  }finally{reference.remove();}
+ }
  const originals=[...container.querySelectorAll('.print-page')];
  for(const page of originals){
   const group=page.dataset.package;
@@ -141,7 +153,8 @@ export function paginate(container,packages,view){
  for(const p of packages){
   const pages=[...container.querySelectorAll('.print-page')].filter(x=>x.dataset.package===p.id);
   if(view==='booklet'&&pages.length>p.config.max_pages)throw Error('Page budget exceeded: '+pages.length+' / '+p.config.max_pages);
-  const positions={};pages.forEach((page,i)=>page.querySelectorAll('[data-node]').forEach(n=>positions[n.dataset.node]=i+1));
+  const positions=bookletPositions[p.id]||{};
+  if(view!=='teacher')pages.forEach((page,i)=>page.querySelectorAll('[data-node]').forEach(n=>positions[n.dataset.node]=i+1));
   pages.forEach((page,i)=>{
    page.querySelector('footer').textContent=`PAPER AI · ${p.id} · ${p.config.language==='zh'?'页':'Page'} ${i+1} / ${pages.length}`;
    page.querySelectorAll('[data-target]').forEach(n=>{n.textContent=n.dataset.target+' ('+(p.config.language==='zh'?'页 ':'p. ')+(positions[n.dataset.target]||positions[n.dataset.target.replace('R','Q')]||pages.length)+')';});

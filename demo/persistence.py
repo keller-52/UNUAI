@@ -1,5 +1,6 @@
 """Versioned complete backups; merge-only restore with atomic conflict checks."""
 import copy
+from contextlib import closing
 import json
 import secrets
 import sqlite3
@@ -69,7 +70,7 @@ def restore(store, body):
         # Keep a local recovery snapshot before a successful merge.
         directory = store.path.parent / 'backups';directory.mkdir(exist_ok=True)
         destination = directory / ('before-restore-' + secrets.token_hex(6) + '.sqlite3')
-        with sqlite3.connect(str(destination)) as target:
+        with closing(sqlite3.connect(str(destination))) as target:
             db.backup(target)
         for table, record in incoming:
             if table == 'students':

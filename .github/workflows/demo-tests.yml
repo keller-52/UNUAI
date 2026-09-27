@@ -47,6 +47,23 @@ jobs:
           node demo/tests/browser_smoke.cjs
         env:
           PAPER_TEST_OUTPUT: test-results
+      - name: Product workflows and pagination
+        run: |
+          node demo/tests/product_browser.cjs
+          node demo/tests/pagination_browser.cjs
+        env:
+          PAPER_TEST_OUTPUT: test-results/product
+      - name: Restore backup into a separate database
+        run: |
+          python demo/server.py --port 8766 --data /tmp/paper-ai-restore-ci.sqlite3 > /tmp/paper-ai-restore.log 2>&1 &
+          for i in $(seq 1 20); do
+            if curl --fail --silent http://127.0.0.1:8766/api/bootstrap > /dev/null; then break; fi
+            sleep 1
+          done
+          node demo/tests/restore_browser.cjs
+        env:
+          PAPER_RESTORE_URL: http://127.0.0.1:8766
+          PAPER_BACKUP_FILE: test-results/product/synthetic-backup.json
       - name: Preserve synthetic screenshots and print outputs
         if: always()
         uses: actions/upload-artifact@v4
