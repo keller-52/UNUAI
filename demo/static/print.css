@@ -3,3 +3,5 @@
 @media print{body{background:white}.toolbar,.preview-note,#print-error{display:none!important}.print-page{margin:0;box-shadow:none;width:210mm;height:297mm;break-after:page;page-break-after:always}.print-page:last-child{break-after:auto;page-break-after:auto}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 
 html[lang="zh-CN"] body{font-family:"Microsoft YaHei","Noto Sans CJK SC",sans-serif}.print-page{overflow-wrap:anywhere}.print-page h1{overflow-wrap:anywhere}
+
+.batch-question h2{font-size:16px}.batch-question{margin:10px 0}.batch-question .work-space{height:17mm}.print-page p{white-space:pre-wrap}.batch-question .print-options p{font-size:12px}

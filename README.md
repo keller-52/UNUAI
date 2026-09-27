@@ -32,7 +32,10 @@ PAPER AI 最自然地对应：
 
 ## 运行 Demo
 
-已加入本地单教师 Demo 0.2，使用 Python 3.10+，无需安装运行依赖：
+当前支持教师自定义主题、AI 先讲解后出题、5–10 题一组的离线分流，以及多页记录与学情总结。详见 [0.4 进度与人工操作指南](docs/product_04_status.md)。
+
+
+已加入本地单教师 Demo 0.4，使用 Python 3.10+，无需安装运行依赖：
 
 ```bash
 python demo/launch.py
@@ -62,8 +65,11 @@ python demo/launch.py
 
 ## 当前阶段
 
+新增：真实 AI 已改为自主出题，可引用参考题库或混合使用；详细背景与实际运行提示词见 [自主出题协议](docs/ai_question_authoring.md)。下面的 0.2 验收是历史基线，新题版浏览器/打印需再次验收。
+
 截至 2026-09-27，Demo 0.2 已通过主要软件验收：33 项 Python、中英双语 PDF、浏览器闭环、批量/恢复及真实 DeepSeek 两轮。**下一步是人工实印实拍与纸上操作检测**；学习效果实验尚未完成。详细证据和未完成项见 [当前进度报告](docs/demo_status.md)。`examples/round_trip.json` 仍是虚构协议说明样例。
 
 建议先阅读操作流程，再看程序框架、数据协议和实施路线；准备交件时以参赛材料框架逐项核对。内部设计文档使用中文，正式提交及演示使用英文。下一步验证最核心的问题：
 
 > **How much of an adaptive AI tutor can be compiled into paper, and how infrequently does AI need to appear while still preserving meaningful personalization?**
+

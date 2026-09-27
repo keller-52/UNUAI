@@ -12,7 +12,7 @@ fs.mkdirSync(output,{recursive:true});
  try{
   const response=await page.request.post(base+'/api/students',{headers:{'X-PaperAI':'local-teacher'},data:{label:'Synthetic live acceptance '+Date.now(),synthetic:true,class_name:'Live acceptance',diagnostic:{}}});assert.equal(response.status(),201);const learner=await response.json();
   await page.goto(base);await page.waitForSelector(`#student-select option[value="${learner.id}"]`,{state:'attached'});await page.selectOption('#student-select',learner.id);
-  assert.equal(await page.inputValue('#planning-mode'),'live');await page.click('#start-button');
+  assert.equal(await page.inputValue('#planning-mode'),'live');await page.uncheck('#custom-topic');await page.click('#start-button');
   for(let round=1;round<=2;round++){
    await page.selectOption('[name="language"]',round===1?'en':'zh');await page.selectOption('[name="question_count"]',round===1?'3':'4');await page.selectOption('#planning-mode','live');
    const done=page.waitForResponse(r=>r.url()===base+'/api/generate'&&r.request().method()==='POST');await page.click('#generate-button');const generated=await done;const p=await generated.json();
@@ -32,3 +32,4 @@ fs.mkdirSync(output,{recursive:true});
   assert.deepEqual(errors,[]);console.log('PASS: live default, two live UI generations, synthetic confirmed evidence, teacher approvals and six PDF views');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1);});
+

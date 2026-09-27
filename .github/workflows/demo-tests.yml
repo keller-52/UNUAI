@@ -51,6 +51,7 @@ jobs:
         run: |
           node demo/tests/product_browser.cjs
           node demo/tests/pagination_browser.cjs
+          node demo/tests/workbook_browser.cjs
         env:
           PAPER_TEST_OUTPUT: test-results/product
       - name: Restore backup into a separate database

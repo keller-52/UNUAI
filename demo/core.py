@@ -1,6 +1,6 @@
 """Teaching contracts, audited arithmetic bank, paper graph and trace evaluation.
 
-All catalog content is author-created demonstration material. No third-party bank.
+Reference catalog is author-created. Live proposals may also contain AI-authored questions.
 """
 import copy
 import hashlib
@@ -8,8 +8,8 @@ import json
 import re
 from pathlib import Path
 
-VERSION = "0.2.0"
-PROMPT_VERSION = "paper-planner-1"
+VERSION = "0.4.0"
+PROMPT_VERSION = "paper-author-2"
 MAX_NODES = 8
 
 
@@ -148,6 +148,8 @@ def state_for(student, evaluations):
         "mastery": "not_established",
         "status": "ready_for_transfer_check" if ready else ("needs_support_check" if total else "unknown"),
         "recent_correct": correct, "recent_total": total,
+        "recent_window_size": 6,
+        "metric_scope": "recent_correct, recent_total, independent_correct and supported_correct use only the last six observed answers; confirmed_evaluations contains complete round totals",
         "hypotheses": ([{"label": "sign_change", "status": "needs_verification",
                          "evidence_refs": [r["ref"] for r in recent if r.get("misconception") == "sign_change"]}]
                        if any(r.get("misconception") == "sign_change" for r in recent) else []),
@@ -180,6 +182,80 @@ def demo_proposal(state, used_ids, count=3, language="en"):
     return proposal
 
 
+def validate_generated_question(raw):
+    require(isinstance(raw, dict), "Generated question must be an object")
+    q = copy.deepcopy(raw)
+    require(isinstance(q.get("id"), str) and re.fullmatch(r"N[1-9][0-9]*", q["id"]), "Generated IDs must be N1, N2, ...")
+    require(q.get("skill") == "inverse_operations", "Unsupported generated skill")
+    require(q.get("level") in ("foundation", "transfer"), "Invalid generated level")
+    eq = q.get("equation")
+    require(isinstance(eq, dict) and set(eq) == {"a", "b", "c"}, "Equation must contain a,b,c")
+    require(all(type(eq[k]) is int and abs(eq[k]) <= 1000 for k in eq), "Equation coefficients must be bounded integers")
+    a,b,c = (eq[k] for k in ("a","b","c"))
+    require(a != 0 and (c-b) % a == 0 and abs((c-b)//a) <= 1000, "Equation needs one bounded integer solution")
+    template = text(q.get("prompt_template"), "prompt_template", 240)
+    require(template.count("{equation}") == 1, "Include {equation} exactly once")
+    left = "x" if a == 1 else f"{a}x"
+    left += f" + {b}" if b >= 0 else f" - {-b}"
+    q["prompt"] = template.replace("{equation}", f"{left} = {c}")
+    options = q.get("options")
+    require(isinstance(options,list) and len(options)==4 and all(isinstance(o,dict) for o in options), "Four generated options required")
+    require([o.get("id") for o in options] == ["A","B","C","D"], "Options must be ordered A,B,C,D")
+    values = {}
+    for o in options[:3]:
+        if "value" in o:
+            require(type(o["value"]) is int and abs(o["value"]) <= 10000, f"{q['id']}:{o['id']} numeric value must be an integer")
+            values[o["id"]] = o["value"]
+            canonical = f"x = {o['value']}"
+            require("text" not in o or o["text"] == canonical, "Option text/value mismatch")
+            o["text"] = canonical
+        else:
+            value = text(o.get("text"), "Numeric option", 40)
+            normalized=value.replace("−","-").replace("＝","=")
+            match = re.fullmatch(r"x\s*=\s*([+-]?[0-9]+)", normalized)
+            require(match is not None, f"{q['id']}:{o['id']} provide numeric value as an integer, not formatted prose")
+            values[o["id"]] = int(match[1])
+    text(options[3].get("text"), "D option", 100)
+    require(len(set(values.values()))==3, "Numeric options must be distinct")
+    correct = [key for key,value in values.items() if a*value+b==c]
+    require(len(correct)==1 and q.get("correct_option")==correct[0], "Generated answer does not solve equation uniquely")
+    mistakes = q.get("misconception_options", {})
+    require(isinstance(mistakes,dict), "Invalid misconception map")
+    for key,label in mistakes.items():
+        require(key in values and key != correct[0] and label == "sign_change" and a*values[key]==c+b,
+                f"Generated {q['id']} option {key}: sign_change requires a*option_value=c+b ({c+b}); remove this entry from misconception_options or fix the distractor. Use {{}} if uncertain.")
+    hints=q.get("hints")
+    require(isinstance(hints,list) and len(hints)==2, "Exactly two generated hints required")
+    for hint in hints:text(hint,"Hint",240)
+    text(q.get("explanation"),"Explanation",900)
+    text(q.get("design_reason"),"Question design reason",400)
+    q["misconception_options"]=mistakes
+    q["origin"]="ai_generated"
+    q["source"]="AI-authored; arithmetic verified; teaching prose requires teacher review"
+    return {key:q[key] for key in ("id","skill","level","equation","prompt_template","prompt","options","correct_option","misconception_options","hints","explanation","design_reason","origin","source")}
+
+
+def proposal_questions(proposal, unit_id=DEFAULT_UNIT, language="en"):
+    bank=unit_bank(unit_id)
+    raw=proposal.get("generated_questions",[])
+    require(isinstance(raw,list) and len(raw)<=4, "generated_questions must be an array of at most four items")
+    generated={}
+    for item in raw:
+        q=validate_generated_question(item)
+        require(q["id"] not in generated and q["id"] not in bank, "Duplicate generated ID")
+        generated[q["id"]]=q
+    ids=proposal.get("question_ids",[])
+    require(all(k in ids for k in generated), "Unused generated question")
+    result=[]
+    for key in ids:
+        if key in generated:result.append(generated[key])
+        else:
+            require(key in bank and key not in UNITS[unit_id]["diagnostic_ids"], "Unknown or diagnostic-only question selected")
+            q=localized_question(bank[key],language);q["origin"]="bank";result.append(q)
+    require(len({tuple(q["equation"][k] for k in ("a","b","c")) for q in result})==len(result), "Duplicate equation in this packet")
+    return result
+
+
 def validate_proposal(proposal, state, count=3):
     bank = unit_bank(state.get("unit_id", DEFAULT_UNIT))
     require(isinstance(proposal, dict), "AI response must be a JSON object")
@@ -189,7 +265,7 @@ def validate_proposal(proposal, state, count=3):
     require(isinstance(ids, list) and len(ids) == count and all(isinstance(x, str) for x in ids),
             f"question_ids must contain exactly {count} strings")
     require(len(set(ids)) == count, "Select distinct questions")
-    require(all(x in bank and x not in UNITS[state.get("unit_id", DEFAULT_UNIT)]["diagnostic_ids"] for x in ids), "Unknown or diagnostic-only question selected")
+    proposal_questions(proposal, state.get("unit_id", DEFAULT_UNIT))
     notes = proposal.get("coach_notes")
     require(isinstance(notes, list) and len(notes) == count-1, f"{count-1} coach_notes required")
     for note in notes:
@@ -208,8 +284,8 @@ def compile_plan(proposal, config=None):
     bank = unit_bank(unit_id)
     count = len(proposal["question_ids"])
     nodes = []
-    for i, qid in enumerate(proposal["question_ids"], 1):
-        q = localized_question(bank[qid], language)
+    for i, q in enumerate(proposal_questions(proposal, unit_id, language), 1):
+        qid = q["id"]
         node = {**q, "id": f"Q{i}", "bank_id": qid, "type": "choice_question"}
         next_node = f"Q{i+1}" if i < count else "END"
         node["routes"] = [{"answer": o["id"], "next": next_node if o["id"] == q["correct_option"] or i == count else f"R{i}"}
@@ -225,6 +301,9 @@ def compile_plan(proposal, config=None):
 
 
 def validate_plan(plan):
+    if isinstance(plan,dict) and plan.get("layout")=="batch-v1":
+        from workbook import validate_workbook_plan
+        return validate_workbook_plan(plan)
     require(isinstance(plan, dict), "Plan must be an object")
     bank = unit_bank(plan.get("unit_id", DEFAULT_UNIT))
     nodes = plan.get("nodes")
@@ -238,8 +317,12 @@ def validate_plan(plan):
         kind = n.get("type")
         require(kind in ("choice_question", "explanation", "finish"), "Unsupported node type")
         if kind == "choice_question":
-            require(n.get("bank_id") in bank, "Unverified question source")
-            original = localized_question(bank[n["bank_id"]], plan.get("language", "en"))
+            if n.get("origin") == "ai_generated":
+                raw=copy.deepcopy(n);raw["id"]=n.get("bank_id")
+                original=validate_generated_question(raw)
+            else:
+                require(n.get("bank_id") in bank, "Unverified question source")
+                original = localized_question(bank[n["bank_id"]], plan.get("language", "en"))
             for k in ("prompt", "options", "correct_option", "equation", "hints"):
                 require(n.get(k) == original[k], f"Question content mismatch: {n['id']}.{k}")
             routes = n.get("routes", [])
@@ -272,18 +355,25 @@ def validate_plan(plan):
 def public_package(package):
     result = {k: copy.deepcopy(package[k]) for k in
               ("id", "student_id", "round", "version", "status", "sheet_code", "mode", "created_at", "config")}
+    result["record_sheets"] = copy.deepcopy(package.get("record_sheets",[]))
     result["schedule"] = copy.deepcopy(package.get("schedule", []))
     result["plan"] = copy.deepcopy(package["plan"])
     for n in result["plan"]["nodes"]:
-        for secret in ("correct_option", "misconception_options", "equation"):
+        for secret in ("correct_option", "misconception_options", "equation", "design_reason", "prompt_template"):
             n.pop(secret, None)
         if n["type"] == "choice_question":
             n.pop("explanation", None)
+    if result["plan"].get("layout")=="batch-v1":
+        for n in result["plan"]["nodes"]:n.pop("hints",None)
+        result["plan"].pop("batch_feedback",None)
     # Remedial explanations intentionally reveal worked solutions, as teaching content.
     return result
 
 
 def evaluate_trace(package, trace):
+    if package["plan"].get("layout")=="batch-v1":
+        from workbook import evaluate_workbook
+        return evaluate_workbook(package,trace)
     require(isinstance(trace, dict), "Trace must be an object")
     require(trace.get("package_id") == package["id"] and trace.get("package_version") == package["version"],
             "Package/version mismatch")
@@ -358,6 +448,23 @@ def content_hash(data):
 
 def validate_config(config):
     require(isinstance(config, dict), "Teaching config must be an object")
+    if config.get("custom_topic"):
+        topic=text(config.get("topic"),"Topic",160)
+        background=text(config.get("background"),"Topic background",12000)
+        language=config.get("language","en")
+        require(language in ("en","zh"),"Unsupported language")
+        size=config.get("batch_size",10);batches=config.get("batch_count",3)
+        require(type(size) is int and 5<=size<=10,"Each batch needs 5–10 questions")
+        require(type(batches) is int and 2<=batches<=3,"Choose 2–3 batches for offline branching")
+        days=config.get("offline_days",3);pages=config.get("max_pages",30)
+        require(type(days) is int and 1<=days<=14,"Invalid offline interval")
+        require(type(pages) is int and 6<=pages<=60,"Choose a 6–60 page budget")
+        return {"custom_topic":True,"unit_id":DEFAULT_UNIT,"topic":topic,"background":background,
+                "topic_id":content_hash({"topic":topic,"background":background})[:16],
+                "question_count":size*batches,"batch_size":size,"batch_count":batches,
+                "language":language,"offline_days":days,"max_pages":pages,"print_mode":"black_white",
+                "include_reference_bank":config.get("include_reference_bank") is True,
+                "goal":text(config.get("goal") or topic,"Goal",700)}
     days, pages = config.get("offline_days", 3), config.get("max_pages", 6)
     count = config.get("question_count", 3)
     unit_id = config.get("unit_id", DEFAULT_UNIT)
@@ -369,3 +476,4 @@ def validate_config(config):
     require(type(pages) is int and count <= pages <= 12, "Page budget must cover each question (up to 12 pages)")
     return {"offline_days": days, "max_pages": pages, "unit_id": unit_id, "question_count": count, "language": language, "print_mode": "black_white",
             "goal": text(config.get("goal", "Use inverse operations to solve linear equations."), "Goal", 400)}
+

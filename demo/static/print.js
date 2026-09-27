@@ -1,8 +1,8 @@
 import {paperHTML,paginate} from './paper.js';
 const params=new URLSearchParams(location.search),view=params.get('view')||'booklet',token=params.get('token');
 async function init(){
- if(!['booklet','record','teacher'].includes(view))throw Error('Unknown print view');
- if(token&&view==='teacher')throw Error('Teacher guide is not available from a student link.');
+ if(!['booklet','record','teacher','support'].includes(view))throw Error('Unknown print view');
+ if(token&&['teacher','support'].includes(view))throw Error('Teacher guide is not available from a student link.');
  const ids=(params.get('ids')||params.get('id')||'').split(',').filter(Boolean);
  if(!ids.length||ids.length>50||token&&ids.length!==1)throw Error('Invalid print selection');
  const packages=[];

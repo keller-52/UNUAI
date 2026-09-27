@@ -59,10 +59,14 @@ export function readSheet(canvas,points,p){
  const darkness=(x,y,r)=>(white-sample(x,y,r))/(white-black);
  let bits='';for(let i=0;i<32;i++){const d=darkness(86+i*19,148,2);bits+=d>.65?'1':d<.25?'0':'?';}
  const code=decodeBits(bits);
+ const sheet=p.record_sheets?.find(s=>s.code===code);
+ if(p.record_sheets?.length&&!sheet)throw Error('Wrong record sheet for this package.');
+ if(sheet)p={...p,sheet_code:sheet.code,plan:{...p.plan,nodes:p.plan.nodes.filter(n=>sheet.task_ids.includes(n.id))}};
  if(code!==p.sheet_code)throw Error(`This is sheet ${code}; selected package expects ${p.sheet_code}. Select the matching package.`);
  const issues=[],rows=p.plan.nodes.map((n,i)=>{
   const row={task_id:n.id,order:null,first_answer:null,hint_level:null,retry_answer:null};
   for(const [key,xs] of Object.entries(COLS)){
+   if(key==='order'&&p.plan.layout==='batch-v1')continue;
    if(key!=='order'&&n.type!=='choice_question')continue;
    const values=xs.map(x=>darkness(x,rowY(i),2.6));
    const chosen=values.map((v,j)=>v>.55?j:-1).filter(x=>x>=0),uncertain=values.some(v=>v>.22&&v<=.55);
@@ -71,7 +75,7 @@ export function readSheet(canvas,points,p){
   }
   return row;
  });
- return {rows,issues,code,method:'local-omr-v1',notice:'Review every row. This reads marks, not handwriting or reasoning.'};
+ return {rows,issues,code,page:sheet?.page||1,method:'local-omr-v1',notice:'Review every row. This reads marks, not handwriting or reasoning.'};
 }
 export async function loadImage(file){
  const url=URL.createObjectURL(file),img=new Image();
