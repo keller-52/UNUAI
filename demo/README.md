@@ -1,14 +1,12 @@
-> 当前实现已升级至 0.2；本页末尾“0.2：双语与日常操作”和 [0.2 状态](../docs/product_02_status.md)说明新增行为，前文固定三页/英文等 0.1 限制由该节替代。
-
-# PAPER AI Demo 0.1
+# PAPER AI Demo 0.2
 
 一个可本地启动的单教师原型，使用 Python 标准库、SQLite 和原生 HTML/CSS/JavaScript。运行应用不需要 npm、pip、云数据库或外部字体。
 
 **当前能完成：建档／诊断 → 规划 → 教师审核 → 打印学习册与记录纸 → 本地选框扫描／人工录入 → 确认评价 → 下一轮规划。**
 
-界面及纸质材料使用英文，便于准备比赛。当前单元是一元一次方程，固定三道题、两个补救节点和结束节点；不是通用多学科平台。
+界面与材料分别支持中英文。当前单元是一元一次方程，每轮 2–4 题；没有扩展新的知识单元。最新主要软件验收已完成，33 项 Python、浏览器/PDF 和真实 AI 两轮结果见 [0.2 验收报告](../docs/local_validation_02_results.md)。实际打印拍照请按 [人工实物检测指南](../docs/manual_physical_validation.md)操作。
 
-本地 AI 接手验证请直接阅读 [本地验证交接](../docs/local_validation_handoff.md)。
+最新进度见 [进度报告](../docs/demo_status.md)；旧交接文档仅作为历史流程参考。
 
 ## 1. 启动
 
@@ -26,12 +24,12 @@ python demo/server.py
 python demo/server.py --port 8766
 ```
 
-不要直接双击 `index.html`：页面需要同源应用接口。退出终端／Ctrl+C 停止服务。记录存于本机 `demo/data/paperai.sqlite3`，重启不会清空；该文件被 Git 忽略。备份可复制已停止服务的数据库，或使用界面 Export data 导出查看用 JSON（此版没有 JSON 还原导入功能）。
+不要直接双击 `index.html`：页面需要同源应用接口。退出终端／Ctrl+C 停止服务。记录存于本机 `demo/data/paperai.sqlite3`，重启不会清空；该文件被 Git 忽略。备份可复制已停止服务的数据库，或使用 Download full backup 下载可恢复的完整备份；Export data 是查看用 JSON，不作为恢复文件。
 
 ## 2. 五分钟走通演示
 
 1. 点击 **Load sample learners**。Alex 是需要补救的虚构示例，Sam 是可检查迁移的虚构示例。
-2. 选择 Alex，点击 **Create a learning round**；保留 **Rules demo — no AI call**，点击生成。
+2. 选择 Alex，点击 **Create a learning round**；主动选择 **Rules demo — no AI call**（有密钥时默认可能是 Live AI），点击生成。
 3. 查看问题、正确答案、补救说明、分支和 JSON。勾选教师审核，点击 **Approve & freeze this version**。
 4. 打开 **Student booklet / PDF**、**Record sheet / PDF** 或 **Teacher answer guide**。浏览器打印中选择 A4、100%／实际大小、关闭页眉页脚，直接打印或选择“保存为 PDF”。
 5. 进入 **Collect evidence**。点击 **Try a filled sample** 加载明确标为 synthetic 的记录图，检查四个红色定位点，再点 **Read marked circles**。
@@ -47,13 +45,13 @@ python demo/server.py --port 8766
 
 点击侧栏 **AI connection**，填写：
 
-- HTTPS API base URL，例如 `https://api.openai.com/v1`；填写到 `/v1`，不要再加 `/chat/completions`。
+- HTTPS API base URL；DeepSeek 用 `https://api.deepseek.com`。其他兼容提供商按其基础地址填写，不要再加 `/chat/completions`。
 - 你已可访问的 model ID。
 - 该服务的 API key。
 
-适配器使用 Chat Completions 的 `messages`、`response_format: {"type":"json_object"}` 和 `store:false`。服务商需支持这些字段；不是所有所谓“兼容 API”都支持。应用不自动购买服务或选择收费模型。
+适配器使用 Chat Completions 的 `messages`、`response_format: {"type":"json_object"}` 和 `max_tokens`。服务商需支持这些字段；不是所有所谓“兼容 API”都支持。应用不自动购买服务或选择收费模型。
 
-保存后，生成页面可以选择 **Live AI**。密钥仅保存在服务进程内存，关闭服务后需重新填写；不会写入数据库或返回前端。也可在启动前设置以下环境变量：
+保存后，生成页面可以选择 **Live AI**。网页填写的密钥仅保存在服务进程内存，关闭服务后需重新填写；本地私有配置文件则可在重启时读取。密钥不会写入教学数据库或返回前端。也可在启动前设置以下环境变量：
 
 ```text
 PAPER_AI_BASE_URL
@@ -61,9 +59,9 @@ PAPER_AI_MODEL
 PAPER_AI_API_KEY
 ```
 
-模型负责从给定题库选三题、给出规划依据与两段辅导说明、引用学生证据。程序负责已校验题目、正确答案、分支结构、分页和记录模板。这样可以先验证 AI 的教学决策，避免自由生成数学题带来的额外错误。
+模型根据配置从给定题库选 2–4 题、给出规划依据与相应辅导说明、引用学生证据。程序负责已校验题目、正确答案、分支结构、分页和记录模板。这样可以先验证 AI 的教学决策，避免自由生成数学题带来的额外错误。
 
-AI 返回非法 JSON 或不合法题目编号时，最多请求修复一次；失败会明确显示，**不会自动假装成功或切到规则演示**。运行记录保存输入、返回、模型标识、提示词版本和校验结果。当前环境没有用户 API 密钥，因此只验证了适配器的模拟传输测试，尚未完成外部真实模型调用。
+AI 返回非法 JSON 或不合法题目编号时，最多请求修复一次；失败会明确显示，**不会自动假装成功或切到规则演示**。运行记录保存输入、返回、模型标识、提示词版本和校验结果。已完成真实 DeepSeek 浏览器两轮生成、审核与打印，详情见最新验收报告；真实调用不等于真人学习研究。
 
 ## 4. 使用真实记录纸
 

@@ -32,10 +32,10 @@ PAPER AI 最自然地对应：
 
 ## 运行 Demo
 
-已加入本地单教师 Demo 0.1，使用 Python 3.10+，无需安装运行依赖：
+已加入本地单教师 Demo 0.2，使用 Python 3.10+，无需安装运行依赖：
 
 ```bash
-python demo/server.py
+python demo/launch.py
 ```
 
 打开 **http://127.0.0.1:8765**。Windows 可双击 `demo/start-demo.bat`。
@@ -44,7 +44,9 @@ python demo/server.py
 
 - [启动与操作说明](demo/README.md)
 - [实现范围与验证状态](docs/demo_status.md)
-- [给本地 AI 的验证交接](docs/local_validation_handoff.md)
+- [0.2 本地验收报告](docs/local_validation_02_results.md)
+- [人工实物检测指南：下载、启动、打印、拍照](docs/manual_physical_validation.md)
+- [人工实物检测记录模板](docs/manual_physical_test_record.md)
 
 ## 文档
 
@@ -60,7 +62,7 @@ python demo/server.py
 
 ## 当前阶段
 
-截至 2026-09-26，已加入 **Demo 0.1 代码**，包含本地教学闭环与测试。真实 AI 外部调用、实际打印拍照和真人教育实验仍待完成；已跑与待跑检查见 [实现状态](docs/demo_status.md)。`examples/round_trip.json` 仍是虚构协议说明样例。
+截至 2026-09-27，Demo 0.2 已通过主要软件验收：33 项 Python、中英双语 PDF、浏览器闭环、批量/恢复及真实 DeepSeek 两轮。**下一步是人工实印实拍与纸上操作检测**；学习效果实验尚未完成。详细证据和未完成项见 [当前进度报告](docs/demo_status.md)。`examples/round_trip.json` 仍是虚构协议说明样例。
 
 建议先阅读操作流程，再看程序框架、数据协议和实施路线；准备交件时以参赛材料框架逐项核对。内部设计文档使用中文，正式提交及演示使用英文。下一步验证最核心的问题：
 
