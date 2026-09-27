@@ -24,9 +24,29 @@ from core import (BANK, VERSION, PROMPT_VERSION, ValidationError, require, text,
 ROOT = Path(__file__).resolve().parent
 STATIC = ROOT / "static"
 LOCK = threading.RLock()
-PROVIDER = {"base_url": os.environ.get("PAPER_AI_BASE_URL", "https://api.openai.com/v1"),
-            "model": os.environ.get("PAPER_AI_MODEL", ""),
-            "api_key": os.environ.get("PAPER_AI_API_KEY", "")}
+def load_provider(path=None):
+    """Environment overrides ignored local JSON; never expose the key in responses."""
+    path = Path(path) if path else ROOT / "data" / "provider.json"
+    settings = {}
+    if path.exists():
+        try:
+            settings = json.loads(path.read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            raise ValidationError("Cannot read provider.json; check JSON syntax") from None
+        require(isinstance(settings, dict), "Provider config must be an object")
+    provider = {}
+    defaults = {"base_url": "https://api.deepseek.com", "model": "deepseek-flash", "api_key": ""}
+    for key, default in defaults.items():
+        value = os.environ.get("PAPER_AI_" + key.upper(), settings.get(key, default))
+        require(isinstance(value, str), "Provider fields must be strings")
+        provider[key] = value.strip()
+    parsed = urlsplit(provider["base_url"])
+    require(parsed.scheme == "https" and parsed.hostname and not parsed.username and not parsed.password
+            and not parsed.query and not parsed.fragment, "Use an HTTPS provider URL without credentials")
+    return provider
+
+
+PROVIDER = load_provider()
 
 
 def now():
@@ -117,7 +137,7 @@ def ai_plan(request_data, provider):
     started = time.monotonic()
     for attempt in range(2):
         payload = {"model": provider["model"], "messages": messages,
-                   "response_format": {"type": "json_object"}, "store": False}
+                   "response_format": {"type": "json_object"}, "max_tokens": 2048}
         req = urllib.request.Request(provider["base_url"].rstrip("/") + "/chat/completions",
                                      data=json.dumps(payload).encode(),
                                      headers={"Authorization": "Bearer " + provider["api_key"],
@@ -130,6 +150,7 @@ def ai_plan(request_data, provider):
             content = body["choices"][0]["message"]["content"]
             require(isinstance(content, str) and len(content) <= 30000, "Missing or excessive model content")
         except urllib.error.HTTPError as exc:
+            exc.close()
             raise ValidationError(f"AI provider returned HTTP {exc.code}. Check endpoint, key, model and JSON-mode support. No demo fallback was used.") from None
         except (urllib.error.URLError, TimeoutError) as exc:
             raise ValidationError("AI connection failed or timed out. No demo fallback was used.") from None
@@ -282,6 +303,8 @@ class Handler(BaseHTTPRequestHandler):
                 key = body.get("api_key", "")
                 require(isinstance(key, str) and len(key) <= 1000, "Invalid key")
                 with LOCK:
+                    require(base == PROVIDER["base_url"].rstrip("/") or key.strip(),
+                            "Enter a new key when changing provider URL")
                     PROVIDER.update(base_url=base, model=model)
                     if key:
                         PROVIDER["api_key"] = key.strip()
@@ -365,3 +388,4 @@ if __name__ == "__main__":
         server.serve_forever()
     except KeyboardInterrupt:
         server.server_close()
+

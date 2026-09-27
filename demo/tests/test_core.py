@@ -14,7 +14,24 @@ import sqlite3
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from core import (BANK, ValidationError, compile_plan, demo_proposal, state_for,
                   validate_plan, validate_proposal, evaluate_trace, public_package)
-from server import make_server, PROVIDER, ai_plan, Store
+from server import make_server, PROVIDER, ai_plan, Store, load_provider
+
+
+class ProviderConfigTests(unittest.TestCase):
+    def test_local_config_and_environment_override(self):
+        with tempfile.TemporaryDirectory() as folder, patch.dict('os.environ', {}, clear=True):
+            path = Path(folder) / 'provider.json'
+            self.assertEqual(load_provider(path)['base_url'], 'https://api.deepseek.com')
+            path.write_text(json.dumps({'api_key': 'local-test-key', 'model': 'local-model'}))
+            self.assertEqual(load_provider(path)['api_key'], 'local-test-key')
+            with patch.dict('os.environ', {'PAPER_AI_MODEL': 'override'}):
+                self.assertEqual(load_provider(path)['model'], 'override')
+            path.write_text('[]')
+            with self.assertRaises(ValidationError):load_provider(path)
+
+    def test_provider_url_rejects_embedded_credentials(self):
+        with patch.dict('os.environ', {'PAPER_AI_BASE_URL': 'https://user:password@example.com'}):
+            with self.assertRaises(ValidationError):load_provider('/nonexistent-provider.json')
 
 
 class StoreConnectionTests(unittest.TestCase):
@@ -154,7 +171,8 @@ class APITests(unittest.TestCase):
                                    headers={"Content-Type":"application/json",**({"X-PaperAI":"local-teacher"} if header else {})})
         try:
             with urllib.request.urlopen(req) as r:return r.status,json.load(r)
-        except urllib.error.HTTPError as e:return e.code,json.load(e)
+        except urllib.error.HTTPError as e:
+            with e:return e.code,json.load(e)
 
     def test_full_round_revision_and_student_projection(self):
         status,s=self.request('/api/students',{'label':'Test learner','diagnostic':profile()['diagnostic']})
@@ -236,3 +254,4 @@ class AIAdapterTests(unittest.TestCase):
 
 
 if __name__=='__main__':unittest.main()
+

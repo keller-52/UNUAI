@@ -118,3 +118,21 @@ node demo/tests/browser_smoke.cjs
 这是**本机单教师应用**，仅监听 127.0.0.1。学生链接只是本机打印视图，不是隔离完备的多用户账号系统；不要把服务直接开放公网。手机照片需传到电脑，尚不支持手机经局域网直接访问。纸上学习可以离线；网页资源没有 Service Worker 缓存，不承诺服务关闭后网页仍可用。
 
 本版没有长篇手写识别、多页回收、完整班级账号、通用学科模型或真实教育效果数据。PDF 由浏览器打印生成，扫描不能输入 PDF。任何表格中的正确率仅描述现有记录，不代表学习增益、长期保持或最低有效 AI 接入频率。
+
+
+## DeepSeek 演示配置（2026-09-27）
+
+将 `demo/provider.example.json` 复制为 `demo/data/provider.json`，在本机填入项目密钥，再启动服务。该目录已被 Git 忽略，不能将真实配置复制进提交或截图。当前开发环境已配置项目密钥；其他电脑需单独配置，GitHub 下载不会携带密钥。
+
+默认地址为 `https://api.deepseek.com`，默认模型为 `deepseek-flash`。可更改 JSON 中的地址、模型和密钥以使用支持 Chat Completions / JSON mode 的服务；环境变量 `PAPER_AI_BASE_URL`、`PAPER_AI_MODEL`、`PAPER_AI_API_KEY` 优先于文件。网页设置仅影响当前服务进程；更换地址必须重新填写密钥，防止旧密钥误发到另一个服务。
+
+已配置时页面首次打开默认选择 Live AI；规则模式仍可手动选择。Configured 只表示配置存在，实际调用成功见学习包的模型、耗时及审计记录。调用失败不降级成规则结果。
+
+显式运行真实验收（付费调用，仅使用虚构学生，临时数据库自动清理）：
+
+```bash
+python demo/tests/live_smoke.py --run
+```
+
+两轮正常调用，JSON 修复最多共四次请求。普通单元测试和浏览器测试不主动调用真实 AI。结果与待验项目见 [DeepSeek 验证记录](../docs/deepseek_validation.md)。
+

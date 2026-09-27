@@ -4,7 +4,7 @@ import {autoCorners,readSheet,loadImage} from './scanner.js';
 const $=s=>document.querySelector(s);
 let data=null,studentId=localStorage.getItem('paper-student')||'',pkg=null,rows=[],traceSource='manual';
 let scanImage=null,corners=[],scanIssues=[],scanSource='scan',scanRead=false,scanOriginal=null;
-let toastTimer;
+let toastTimer,modeInitialized=false;
 function toast(message,error=false){clearTimeout(toastTimer);$('#notice').textContent=message;$('#notice').className=error?'error':'';$('#notice').hidden=false;toastTimer=setTimeout(()=>$('#notice').hidden=true,error?14000:6500);}
 async function api(path,body){const res=await fetch(path,body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json','X-PaperAI':'local-teacher'},body:JSON.stringify(body)});const result=await res.json();if(!res.ok)throw Error(result.error||'Request failed');return result;}
 function on(selector,event,fn){$(selector).addEventListener(event,async e=>{const button=e.currentTarget;try{if(button.tagName==='BUTTON')button.disabled=true;await fn(e);}catch(err){toast(err.message,true);}finally{if(button.tagName==='BUTTON')button.disabled=false;}});}
@@ -17,8 +17,9 @@ async function refresh(){
  localStorage.setItem('paper-student',studentId);
  $('#student-select').innerHTML=data.students.length?data.students.map(s=>`<option value="${esc(s.id)}">${esc(s.label)}</option>`).join(''):'<option value="">No learner yet</option>';
  $('#student-select').value=studentId;
- $('#mode-status').textContent=data.provider.configured?'Live AI connected':'Rules demo available';
+ $('#mode-status').textContent=data.provider.configured?'Live AI configured':'Rules demo available';
  $('#planning-mode option[value="live"]').disabled=!data.provider.configured;
+ if(!modeInitialized){$('#planning-mode').value=data.provider.configured?'live':'demo';modeInitialized=true;}
  renderOverview();renderState();renderScanSelect();
 }
 function renderOverview(){
@@ -97,3 +98,4 @@ on('#sample-ready-button','click',()=>{requirePackage();rows=sampleRows(pkg,'rea
 on('#save-trace','click',async()=>{requirePackage();if(!$('#trace-confirmed').checked)throw Error('Check the record and tick the confirmation box.');if(traceSource==='scan'&&!scanRead)throw Error('Read this image first, or clear the table for manual entry.');const trace={package_id:pkg.id,package_version:pkg.version,confirmed:true,source:traceSource,rows,scan_review:scanOriginal?{method:'local-omr-v1',original_rows:scanOriginal,issues:scanIssues,corrected_fields:rows.flatMap(r=>Object.keys(r).filter(k=>k!=='task_id'&&r[k]!==scanOriginal.find(x=>x.task_id===r.task_id)?.[k]).map(k=>({task_id:r.task_id,field:k,from:scanOriginal.find(x=>x.task_id===r.task_id)?.[k]??null,to:r[k]})))}:null};const result=await api('/api/packages/'+pkg.id+'/trace',{trace,expected_revision:pkg.trace_revision||0});await refresh();await openPackage(pkg.id);show('results');window.scrollTo(0,0);toast(result.duplicate?'Identical record already saved. No duplicate result was added.':'Evidence saved. The next plan will use these observations.');});
 on('#export-button','click',async()=>{download('paper-ai-local-export.json',JSON.stringify(await api('/api/export'),null,2));toast('Export downloaded. Review free text and aliases before sharing it.');});
 refresh().catch(e=>toast('Cannot connect to the local app: '+e.message,true));
+
