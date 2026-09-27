@@ -32,10 +32,15 @@ PAPER AI 最自然地对应：
 
 ## 运行 Demo
 
-当前支持教师自定义主题、AI 先讲解后出题、5–10 题一组的离线分流，以及多页记录与学情总结。详见 [0.4 进度与人工操作指南](docs/product_04_status.md)。
+当前 Demo 0.4 支持教师自定义主题、AI 先讲解后出题、每组 5–10 题的整批核对与离线分流、多页记录，以及基于已确认记录的学情总结与下一轮生成。
 
+建议按以下顺序使用：
 
-已加入本地单教师 Demo 0.4，使用 Python 3.10+，无需安装运行依赖：
+- [0.4 人工操作指南](docs/manual_operation_guide.md)
+- [0.4 本地 AI 测试与验收要求](docs/local_ai_test_guide.md)
+- [0.4 当前实现与验证状态](docs/product_04_status.md)
+
+本地单教师 Demo 使用 Python 3.10+，运行应用无需安装额外 Python 依赖：
 
 ```bash
 python demo/launch.py
@@ -43,33 +48,37 @@ python demo/launch.py
 
 打开 **http://127.0.0.1:8765**。Windows 可双击 `demo/start-demo.bat`。
 
-包含基础诊断、教学规划、审核打印、独立记录纸、本地选框扫描、校对评价和第二轮更新。无 API 密钥可用明确标识的规则演示；真实 AI 需自行配置服务。
-
-- [启动与操作说明](demo/README.md)
-- [实现范围与验证状态](docs/demo_status.md)
-- [0.2 本地验收报告](docs/local_validation_02_results.md)
-- [人工实物检测指南：下载、启动、打印、拍照](docs/manual_physical_validation.md)
-- [人工实物检测记录模板](docs/manual_physical_test_record.md)
+自定义主题需要配置真实 AI；规则演示只用于兼容与工程测试，不能冒充真实 AI 结果。所有离线题组、核对内容和记录纸应在开始前一次打印，学生完成整组后再核对并按预先设计的规则进入下一题组，中途无需联网或再次调用 AI。
 
 ## 文档
 
 - [竞赛章程整理](docs/competition_rules.md)
 - [PAPER AI 项目构想](docs/project_idea.md)
+- [0.4 人工操作指南](docs/manual_operation_guide.md)
+- [0.4 本地 AI 测试与验收要求](docs/local_ai_test_guide.md)
+- [0.4 当前实现与验证状态](docs/product_04_status.md)
 - [程序框架与模块职责](docs/system_architecture.md)
 - [完整操作流程与纸张设计](docs/operation_workflow.md)
 - [数据协议与 AI 接口](docs/data_contracts.md)
+- [自主出题协议](docs/ai_question_authoring.md)
 - [JSON 往返示例](examples/round_trip.json)
 - [研究问题、实验与证据计划](docs/research_plan.md)
 - [参赛材料内容框架](docs/submission_framework.md)
 - [实施路线与任务清单](docs/implementation_roadmap.md)
+- [0.2 历史验收报告](docs/local_validation_02_results.md)
+- [0.2 历史实物检测指南](docs/manual_physical_validation.md)
+- [人工实物检测记录模板](docs/manual_physical_test_record.md)
 
 ## 当前阶段
 
-新增：真实 AI 已改为自主出题，可引用参考题库或混合使用；详细背景与实际运行提示词见 [自主出题协议](docs/ai_question_authoring.md)。下面的 0.2 验收是历史基线，新题版浏览器/打印需再次验收。
+截至 2026-09-27，0.4 已有 **42 项自动检查通过**记录，并完成一次真实 DeepSeek 15 题离线分流包与一次学情总结的工程验证。
 
-截至 2026-09-27，Demo 0.2 已通过主要软件验收：33 项 Python、中英双语 PDF、浏览器闭环、批量/恢复及真实 DeepSeek 两轮。**下一步是人工实印实拍与纸上操作检测**；学习效果实验尚未完成。详细证据和未完成项见 [当前进度报告](docs/demo_status.md)。`examples/round_trip.json` 仍是虚构协议说明样例。
+仍未完成的当前版验收包括：0.4 浏览器 / PDF 复测、默认 30 题、多主题与中英文真实 AI 稳定性、真实打印填写与手机多页扫描闭环，以及学情总结到下一轮的完整实物证据。0.2 的浏览器 / PDF 通过结果只作为历史基线，不能代替 0.4 复测。
 
-建议先阅读操作流程，再看程序框架、数据协议和实施路线；准备交件时以参赛材料框架逐项核对。内部设计文档使用中文，正式提交及演示使用英文。下一步验证最核心的问题：
+明确延期：各大主流平台原生 API 适配、正式展示用两个较难文 / 理知识点的最终选择，以及更长期的学习效果 / AI 接入间隔研究。
+
+合成作答、规则演示和工程测试均不能证明真实学习效果。详细 PASS / FAIL / BLOCKED / NOT RUN 口径见 [本地 AI 测试与验收要求](docs/local_ai_test_guide.md)。
+
+下一步验证最核心的问题仍是：
 
 > **How much of an adaptive AI tutor can be compiled into paper, and how infrequently does AI need to appear while still preserving meaningful personalization?**
-
