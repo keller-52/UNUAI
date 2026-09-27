@@ -1,6 +1,8 @@
 # PAPER AI 0.4：自定义主题与纸上分流
 
-更新：2026-09-27。此页替代 0.2 作为当前功能进度；历史验收结果仍保留原适用版本。\n\n当前操作以 [0.4 人工操作指南](manual_operation_guide.md) 为准；测试矩阵与 PASS / FAIL / BLOCKED / NOT RUN 口径以 [0.4 本地 AI 测试与验收要求](local_ai_test_guide.md) 为准。
+更新：2026-09-27。此页替代 0.2 作为当前功能进度；历史验收结果仍保留原适用版本。
+
+当前操作以 [0.4 人工操作指南](manual_operation_guide.md) 为准；测试矩阵与 PASS / FAIL / BLOCKED / NOT RUN 口径以 [0.4 本地 AI 测试与验收要求](local_ai_test_guide.md) 为准。
 
 ## 已实现
 
