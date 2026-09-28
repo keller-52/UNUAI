@@ -29,7 +29,7 @@ node demo/tests/release05_browser.cjs
 node demo/tests/release06_browser.cjs
 ```
 
-基线 47 项 Python 检查；记录实际数量，不机械凑数。JS 语法检查可用 Bash 的 `for file in demo/static/*.js; do node --input-type=module --check < "$file" || exit 1; done`；PowerShell 使用 `Get-ChildItem demo/static/*.js | ForEach-Object { Get-Content -Raw $_.FullName | node --input-type=module --check; if ($LASTEXITCODE -ne 0) { throw "Syntax check failed" } }`。
+基线 49 项 Python 检查；记录实际数量，不机械凑数。JS 语法检查可用 Bash 的 `for file in demo/static/*.js; do node --input-type=module --check < "$file" || exit 1; done`；PowerShell 使用 `Get-ChildItem demo/static/*.js | ForEach-Object { Get-Content -Raw $_.FullName | node --input-type=module --check; if ($LASTEXITCODE -ne 0) { throw "Syntax check failed" } }`。
 
 脚本边界：`release05_test.cjs` 检查合成内圈填涂和 Markdown；`release05_browser.cjs` 的 PDF 下载使用模拟 HTTP 内容，仅证明按钮下载交互，不能代替实际 PDF 导出。Python PDF 检查使用模拟浏览器进程。`workbook_browser.cjs` 仍保留旧结构题组夹具作兼容回归。旧 live 脚本不能充抵新版自由指导验收。
 
@@ -92,3 +92,5 @@ PDF 导出自动查找已安装的 Chrome/Edge，或使用 `PAPER_AI_BROWSER`。
 每次功能修改同步本指南、人工指南及当前进度，正式文/理展示选题和扩展题库仍待后续；平台接入已不再延期。
 
 新增审核提醒：若三栏分流表的“选择情况”明确引用本组之后的题号，页面会显示题组/题号警示。请在草稿 JSON 中修改条件，再保存审核；这是辅助提醒，不执行分数规则，也不证明所有自然语言逻辑已正确。
+
+总结请求已与出题约束分离；`test_release06.py` 检查总结不携带出题数量指令、缺提示错误能指出具体题号。

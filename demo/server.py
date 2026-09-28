@@ -133,7 +133,10 @@ def ai_plan(request_data, provider):
     summarising=request_data.get("operation")=="summary"
     prompt_file="learning_summary.md" if summarising else "custom_workbook.md" if custom else "author_lesson.md"
     system = (ROOT / "prompts" / prompt_file).read_text(encoding="utf-8")
-    system += f"\nCurrent packet: exactly {count} questions; visible language {language}; batch_size {request_data.get('constraints',{}).get('batch_size',0)}." if custom else f"\nCurrent packet: exactly {count} questions; {count-1} coach notes; visible language {language}."
+    if summarising:
+        system += f"\nSummarise existing evidence only; visible language {language}. Return situation and measures, not a new question packet."
+    else:
+        system += f"\nCurrent packet: exactly {count} questions; visible language {language}; batch_size {request_data.get('constraints',{}).get('batch_size',0)}." if custom else f"\nCurrent packet: exactly {count} questions; {count-1} coach notes; visible language {language}."
     messages = [{"role": "system", "content": system},
                 {"role": "user", "content": json.dumps(request_data, ensure_ascii=False)}]
     attempts = []
