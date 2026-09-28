@@ -22,7 +22,7 @@ with tempfile.TemporaryDirectory() as folder:
   assert.equal(await page.isChecked('#custom-topic'),true);
   await page.click('#connect-ai-main');await page.waitForSelector('#settings-dialog[open]');
   await page.click('[data-close="settings-dialog"]');
-  await page.selectOption('#planning-mode','demo');await page.selectOption('#planning-mode','live');
+  await page.click('[data-tab="plan"]');await page.selectOption('#planning-mode','demo');await page.selectOption('#planning-mode','live');
   await page.waitForSelector('#settings-dialog[open]');
   for(const view of ['booklet','support','record','teacher']){
    const print=await browser.newPage();await print.route('**/api/packages/'+fixture.id,r=>r.fulfill({json:fixture}));
