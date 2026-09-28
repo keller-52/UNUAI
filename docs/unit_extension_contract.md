@@ -1,3 +1,5 @@
+> **文档分类：历史文档。** 旧固定 `linear-equations` 单元与单页 OMR 容量接口。 本文保留当时版本的真实设计/验收记录，不代表当前 0.5；当前入口见 [文档索引](README.md) 与 [0.5 状态](product_05_status.md)。
+
 # 知识单元扩展接口 v1
 
 目前只注册 `linear-equations`，不新增知识单元。内容文件为 `demo/units/linear-equations.json`；程序启动时读取该目录的 JSON。`core.load_units()` 是注册入口，`localized_question()` 选择材料语言，`unit_bank()` 获取题库。
