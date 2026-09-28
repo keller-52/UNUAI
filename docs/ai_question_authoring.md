@@ -1,4 +1,6 @@
-> 本文主要记录旧方程单元的生成契约。任意主题与整批离线分流使用 `demo/prompts/custom_workbook.md`，见 [0.4 当前进度](product_04_status.md)。
+> **文档分类：历史文档。** 0.3 固定方程单元生成契约。 本文保留当时版本的真实设计/验收记录，不代表当前 0.5；当前入口见 [文档索引](README.md) 与 [0.5 状态](product_05_status.md)。
+
+> 本文主要记录旧方程单元的生成契约。任意主题与当前自由离线指导使用 `demo/prompts/custom_workbook.md`；当前状态见 [0.5 状态](product_05_status.md)。
 
 # AI 自主出题与参考题库（0.3）
 
