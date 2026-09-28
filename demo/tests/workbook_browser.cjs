@@ -19,11 +19,10 @@ with tempfile.TemporaryDirectory() as folder:
   const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/api/bootstrap',r=>r.fulfill({json:{version:'0.4',students:[],packages:[],diagnostic:[],provider:{configured:false,base_url:'https://api.deepseek.com',model:'deepseek-flash'}}}));
   await page.goto(process.env.PAPER_TEST_URL||'http://127.0.0.1:8765');
-  assert.equal(await page.isChecked('#custom-topic'),true);
+  assert.equal(await page.locator('nav .nav').count(),3);assert.equal(await page.locator('#custom-topic').count(),0);
   await page.click('#connect-ai-main');await page.waitForSelector('#settings-dialog[open]');
   await page.click('[data-close="settings-dialog"]');
-  await page.click('[data-tab="plan"]');await page.selectOption('#planning-mode','demo');await page.selectOption('#planning-mode','live');
-  await page.waitForSelector('#settings-dialog[open]');
+  await page.click('[data-tab="plan"]');assert.equal(await page.locator('#planning-mode').count(),0);
   for(const view of ['booklet','support','record','teacher']){
    const print=await browser.newPage();await print.route('**/api/packages/'+fixture.id,r=>r.fulfill({json:fixture}));
    await print.goto((process.env.PAPER_TEST_URL||'http://127.0.0.1:8765')+'/print.html?id='+fixture.id+'&view='+view);

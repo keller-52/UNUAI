@@ -1,3 +1,5 @@
+> 当前版本 **0.6**：首页概论 + 三工作区、实拍编码偏移修复、提示勾选框与答题括号。查看 [当前进度](../docs/product_06_status.md)、[人工指南](../docs/manual_operation_guide.md)、[本地验收](../docs/local_ai_test_guide.md)。
+
 # PAPER AI Demo 0.5
 
 > **文档分类：当前文档。** 操作以 [人工操作指南](../docs/manual_operation_guide.md) 为准，测试以 [本地 AI 验收要求](../docs/local_ai_test_guide.md) 为准，完整分类见 [文档索引](../docs/README.md)。

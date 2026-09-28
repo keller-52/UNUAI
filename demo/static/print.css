@@ -9,3 +9,16 @@ html[lang="zh-CN"] body{font-family:"Microsoft YaHei","Noto Sans CJK SC",sans-se
 .rich-text{font-size:12pt;line-height:1.65;white-space:normal;overflow-wrap:anywhere}.rich-text p{margin:0 0 8px}.rich-text h2,.rich-text h3,.rich-text h4{font-size:14pt;margin:12px 0 6px;break-after:avoid}.rich-text ul,.rich-text ol{padding-left:24px;margin:6px 0}.rich-text li{margin:4px 0}.rich-text pre{white-space:pre-wrap;font-size:10pt;background:#f5f5f5;padding:8px}.rich-text code{font-family:monospace}.rich-text blockquote{border-left:3px solid #777;margin:8px 0;padding-left:12px}.prose-table{width:100%;border-collapse:collapse;table-layout:fixed}.prose-table th,.prose-table td{border:1px solid #aaa;padding:6px;overflow-wrap:anywhere}.teacher-item{break-inside:auto}.teacher-item>h2,.teacher-item>h3{break-after:avoid}
 
 .rich-block{font-size:12pt;line-height:1.65;white-space:normal;margin:0 0 9px;overflow-wrap:anywhere}h2.rich-block,h3.rich-block,h4.rich-block{font-size:14pt;break-after:avoid}.toolbar{flex-wrap:wrap}.toolbar button:disabled{opacity:.55;cursor:wait}pre.rich-block{white-space:pre-wrap;font:10pt/1.5 monospace;background:#f5f5f5;padding:8px}
+
+/* Consistent compact support pages: each hint stays with its number and tick box. */
+.hint-item{border-bottom:1px solid #ccd2cb;padding:8px 0 12px;break-inside:avoid;font-size:12px}
+.hint-item h2,.teacher-item h2{font-size:17px;margin:12px 0 10px}
+.hint-line{display:flex;align-items:baseline;gap:5px;margin:5px 0;line-height:1.6}
+.hint-copy{flex:1;min-width:0}.hint-copy .rich-text{display:inline;font:inherit;line-height:inherit}
+.hint-copy .rich-text p{display:inline;margin:0;white-space:normal}.hint-copy .rich-text p+p:before{content:" ";white-space:pre}
+.hint-copy .rich-text ul,.hint-copy .rich-text ol{margin:0;padding-left:20px}
+.hint-check{display:inline-block;margin-left:8px;font:18px/1 Arial,sans-serif;color:#182b28;white-space:nowrap}
+.answer-slot{white-space:nowrap;display:inline-block;min-width:3em;font-weight:normal}
+.teacher-item .rich-text{font-size:12px;line-height:1.65}.teacher-item{break-inside:avoid;padding:10px 0}
+.lesson-paragraph{text-indent:2em;white-space:normal!important}
+.print-page h1{font-size:25px;line-height:1.3}

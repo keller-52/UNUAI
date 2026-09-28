@@ -13,8 +13,9 @@ fs.mkdirSync(output,{recursive:true});
  const page=await context.newPage();
  const request=async(url,body)=>{const r=body===undefined?await context.request.get(base+url):await context.request.post(base+url,{data:body,headers:{'X-PaperAI':'local-teacher'}});return {status:r.status(),data:await r.json()};};
  const get=async url=>(await request(url)).data;
- const open=async(p,id,sid)=>{await p.goto(base);await p.waitForSelector(`#student-select option[value="${sid}"]`,{state:'attached'});await p.selectOption('#student-select',sid);await p.click(`[data-open="${id}"]`);await p.waitForSelector('#package-panel:not([hidden])');};
- const generate=async()=>{const done=page.waitForResponse(r=>r.url()===base+'/api/generate'&&r.request().method()==='POST');await page.click('#generate-button');const r=await done;assert.equal(r.status(),201);const p=await r.json();await page.waitForFunction(round=>document.querySelector('#package-title').textContent.startsWith('Round '+round+' /'),p.round);await page.waitForSelector('#package-panel:not([hidden])');return p;};
+ const open=async(p,id,sid)=>{await p.goto(base);await p.waitForSelector(`#student-select option[value="${sid}"]`,{state:'attached'});await p.selectOption('#student-select',sid);await p.click('[data-tab=plan]');await p.locator('#rounds-panel').evaluate(e=>e.open=true);await p.click(`[data-open="${id}"]`);await p.waitForSelector('#package-panel:not([hidden])');};
+ let language='en',count=3;
+ const generate=async()=>{const result=await request('/api/generate',{student_id:await page.inputValue('#student-select'),mode:'demo',config:{language,question_count:count,max_pages:12,goal:'Preserve this teaching goal'}});assert.equal(result.status,201);const p=result.data;await open(page,p.id,p.student_id);return p;};
  const approve=async()=>{const done=page.waitForResponse(r=>r.url().endsWith('/approve'));await page.check('#reviewed');await page.click('#approve-button');assert.equal((await done).status(),200);await page.waitForSelector('#print-controls:not([hidden])');};
  const save=async p=>{await p.check('#trace-confirmed');const done=p.waitForResponse(r=>r.url().endsWith('/trace'));await p.click('#save-trace');return done;};
  const packets=[];
@@ -27,12 +28,12 @@ fs.mkdirSync(output,{recursive:true});
   assert.equal(learner.state.status,'unknown');await page.reload();
   await page.waitForSelector(`#student-select option[value="${learner.id}"]`,{state:'attached'});
   assert.equal(await page.inputValue('#student-select'),learner.id);
-  await page.click('#start-button');await page.uncheck('#custom-topic');await page.fill('[name="goal"]','Preserve this teaching goal');
+  await page.click('#start-button');await page.fill('[name="goal"]','Preserve this teaching goal');
   await page.selectOption('[name="language"]','en');await page.selectOption('#ui-language','zh');
   assert.equal(await page.inputValue('[name="goal"]'),'Preserve this teaching goal');assert.equal(await page.inputValue('[name="language"]'),'en');
   await page.selectOption('#ui-language','en');
-  for(const language of ['en','zh'])for(const count of [2,3,4]){
-   await page.selectOption('[name="language"]',language);await page.selectOption('[name="question_count"]',String(count));await page.selectOption('#planning-mode','demo');
+  for(language of ['en','zh'])for(count of [2,3,4]){
+   await page.selectOption('[name="language"]',language);
    const p=await generate();packets.push(p);assert.equal(p.plan.nodes.length,count*2);assert.equal(p.config.language,language);
    await approve();
    let bookletTargets;
@@ -53,27 +54,27 @@ fs.mkdirSync(output,{recursive:true});
    }
   }
   console.log('PASS: new learner, persistence, language independence, bilingual 2/3/4-question PDFs and route pages');
-  const p=packets.at(-1);await page.click('#collect-button');await page.click('#sample-scan-button');await page.waitForSelector('#scan-canvas[data-loaded]');await page.click('#read-sheet');
+  const p=packets.at(-1);await page.click('#collect-button');await page.locator('#sample-scan-button').evaluate(e=>e.closest('details').open=true);await page.click('#sample-scan-button');await page.waitForSelector('#scan-canvas[data-loaded]');await page.click('#read-sheet');
   await page.waitForFunction(()=>document.querySelector('#scan-issues').textContent.includes('matched.'));
   await page.selectOption('[data-task="Q1"][data-field="hint_level"]','2');assert.equal((await save(page)).status(),200);await page.waitForSelector('#results.active');
   const first=await get('/api/packages/'+p.id);assert.equal(first.trace_revision,1);assert.ok(first.trace.scan_review.corrected_fields.some(x=>x.field==='hint_level'&&x.to===2));
   await page.click('[data-tab="scan"]');await page.selectOption('[data-task="Q1"][data-field="hint_level"]','1');await page.reload();
-  await page.click(`[data-open="${p.id}"]`);await page.click('#collect-button');assert.equal(await page.inputValue('[data-task="Q1"][data-field="hint_level"]'),'1');assert.equal(await page.isChecked('#trace-confirmed'),false);
+  await page.click('[data-tab=plan]');await page.locator('#rounds-panel').evaluate(e=>e.open=true);await page.click(`[data-open="${p.id}"]`);await page.click('#collect-button');assert.equal(await page.inputValue('[data-task="Q1"][data-field="hint_level"]'),'1');assert.equal(await page.isChecked('#trace-confirmed'),false);
   const other=await context.newPage();await open(other,p.id,learner.id);await other.click('#collect-button');
   await other.selectOption('[data-task="Q1"][data-field="hint_level"]','0');assert.equal((await save(other)).status(),200);await other.waitForSelector('#results.active');
   assert.equal((await save(page)).status(),400);assert.match(await page.locator('#notice').innerText(),/another tab/);
-  await page.reload();await page.click(`[data-open="${p.id}"]`);await page.click('#collect-button');assert.equal(await page.inputValue('[data-task="Q1"][data-field="hint_level"]'),'0');
+  await page.reload();await page.click('[data-tab=plan]');await page.locator('#rounds-panel').evaluate(e=>e.open=true);await page.click(`[data-open="${p.id}"]`);await page.click('#collect-button');assert.equal(await page.inputValue('[data-task="Q1"][data-field="hint_level"]'),'0');
   const before=await get('/api/packages/'+p.id);const duplicate=await request('/api/packages/'+p.id+'/trace',{trace:before.trace,expected_revision:before.trace_revision});assert.equal(duplicate.data.duplicate,true);
   await page.selectOption('#scan-package-select',packets[0].id);await page.waitForFunction(()=>document.querySelector('#trace-body').children.length===4);assert.equal(await page.locator('#scan-canvas').getAttribute('data-loaded'),null);
   await other.close();console.log('PASS: scan correction audit, correction recovery, two-tab conflict, stale-draft rejection and historical round switch');
-  await page.click('[data-tab="overview"]');const download=page.waitForEvent('download');await page.click('#backup-download');await(await download).saveAs(path.join(output,'synthetic-backup.json'));
+  await page.click('[data-tab=plan]');await page.locator('#manage-panel').evaluate(e=>e.open=true);const download=page.waitForEvent('download');await page.click('#backup-download');await(await download).saveAs(path.join(output,'synthetic-backup.json'));
   const exported=JSON.parse(fs.readFileSync(path.join(output,'synthetic-backup.json'),'utf8'));assert.ok(exported.trace_history.filter(x=>x.package_id===p.id).length>=2);assert.ok(!JSON.stringify(exported).includes('api_key'));
   const two=[];for(let i=0;i<2;i++){const r=await request('/api/students',{label:`Batch ${Date.now()} ${i}`,class_name:'Batch acceptance',synthetic:true});two.push(r.data.id);}
-  await page.reload();await page.waitForSelector(`[data-batch][value="${two[0]}"]`);for(const id of two)await page.check(`[data-batch][value="${id}"]`);
-  await page.click('[data-tab="plan"]');await page.uncheck('#custom-topic');await page.selectOption('#planning-mode','demo');await page.click('[data-tab="overview"]');await page.click('#batch-generate');await page.waitForFunction(()=>document.querySelector('#batch-status').textContent==='2 / 2');
+  await page.reload();await page.click('[data-tab=plan]');await page.locator('#manage-panel').evaluate(e=>e.open=true);await page.waitForSelector(`[data-batch][value="${two[0]}"]`);for(const id of two)await page.check(`[data-batch][value="${id}"]`);
+  for(const id of two){const r=await request('/api/generate',{student_id:id,mode:'demo',config:{language:'en',question_count:3,max_pages:12}});assert.equal(r.status,201);}
   const all=await get('/api/bootstrap');const batch=two.map(id=>all.packages.filter(p=>p.student_id===id).at(-1));
   for(const item of batch){await open(page,item.id,item.student_id);await approve();}
-  await page.click('[data-tab="overview"]');for(const id of two)await page.check(`[data-batch][value="${id}"]`);
+  await page.click('[data-tab=plan]');await page.locator('#manage-panel').evaluate(e=>e.open=true);for(const id of two)await page.check(`[data-batch][value="${id}"]`);
   for(const [button,view] of [['#batch-booklets','booklet'],['#batch-records','record']]){
    const opening=context.waitForEvent('page');await page.click(button);const print=await opening;await print.waitForLoadState();await print.waitForFunction(()=>document.body.dataset.ready||document.body.dataset.error);assert.equal(await print.getAttribute('body','data-error'),null);
    assert.equal(await print.locator('[data-package]').evaluateAll(nodes=>new Set(nodes.map(n=>n.dataset.package)).size),2);

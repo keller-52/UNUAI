@@ -71,8 +71,18 @@ export function readSheet(canvas,points,p){
  const white=sample(400,70,4);
  if(white-black<45)throw Error('Insufficient contrast or incorrect corners. Try a brighter, sharper photo.');
  const darkness=(x,y,r)=>(white-sample(x,y,r))/(white-black);
- let bits='';for(let i=0;i<32;i++){const d=darkness(86+i*19,148,2);bits+=d>.65?'1':d<.25?'0':'?';}
- const code=decodeBits(bits);
+ // Paper curl/lens distortion can shift the code strip slightly despite correct corners.
+ // Decode independently of the selected package. Require checksum-valid consensus;
+ // never guess damaged bits from the expected package ID.
+ const decoded=new Map();let originalBits='';
+ for(const dy of [0,-2,2,-4,4,-6,6])for(const dx of [0,-2,2]){
+  let bits='';for(let i=0;i<32;i++){const d=darkness(86+i*19+dx,148+dy,2);bits+=d>.65?'1':d<.25?'0':'?';}
+  if(!dx&&!dy)originalBits=bits;
+  try{const value=decodeBits(bits);decoded.set(value,(decoded.get(value)||0)+1);}catch{}
+ }
+ if(decoded.size!==1){if(!decoded.size)decodeBits(originalBits);throw Error('The sheet code is ambiguous. Reposition the corner markers or use a clearer image.');}
+ const [code,votes]=[...decoded][0];
+ if(votes<2)throw Error('The sheet code is ambiguous. Reposition the corner markers or use a clearer image.');
  const sheet=p.record_sheets?.find(s=>s.code===code);
  if(p.record_sheets?.length&&!sheet)throw Error('Wrong record sheet for this package.');
  if(sheet)p={...p,sheet_code:sheet.code,plan:{...p.plan,nodes:p.plan.nodes.filter(n=>sheet.task_ids.includes(n.id))}};
@@ -90,7 +100,7 @@ export function readSheet(canvas,points,p){
   }
   return row;
  });
- return {rows,issues,code,page:sheet?.page||1,method:'local-omr-area-v2',notice:'Review every row. This reads marks, not handwriting or reasoning.'};
+ return {rows,issues,code,page:sheet?.page||1,method:'local-omr-area-v3',notice:'Review every row. This reads marks, not handwriting or reasoning.'};
 }
 export async function loadImage(file){
  const url=URL.createObjectURL(file),img=new Image();

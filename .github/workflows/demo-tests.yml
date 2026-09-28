@@ -37,6 +37,7 @@ jobs:
         run: |
           node demo/tests/scanner_test.cjs
           node demo/tests/release05_test.cjs
+          node demo/tests/release06_test.cjs
         env:
           PAPER_TEST_OUTPUT: test-results
       - name: Browser and PDF smoke test
@@ -55,6 +56,7 @@ jobs:
           node demo/tests/pagination_browser.cjs
           node demo/tests/workbook_browser.cjs
           node demo/tests/release05_browser.cjs
+          node demo/tests/release06_browser.cjs
         env:
           PAPER_TEST_OUTPUT: test-results/product
       - name: Restore backup into a separate database

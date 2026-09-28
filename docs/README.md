@@ -1,3 +1,5 @@
+> 当前实现以 [0.6 进度](product_06_status.md)、[本地验收](local_ai_test_guide.md)、[人工指南](manual_operation_guide.md) 为准。0.5 进度属于上一版本实现记录，平台表继续适用。
+
 # UNUAI 文档索引
 
 > **文档分类：总括性文档。** 更新：2026-09-28。当前产品版本为 **PAPER AI 0.5**，代码实现基线为 `4e04b620352db32f9237368a69bcb1fa12dde6a7`。

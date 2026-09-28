@@ -1,3 +1,5 @@
+> 当前版本 **0.6**：首页概论 + 三工作区、实拍编码偏移修复、提示勾选框与答题括号。查看 [当前进度](docs/product_06_status.md)、[人工指南](docs/manual_operation_guide.md)、[本地验收](docs/local_ai_test_guide.md)。
+
 # UNUAI — PAPER AI
 
 > **文档分类：总括性文档。** 当前版本：**0.5**（2026-09-28）。完整文档分类见 [docs/README.md](docs/README.md)。

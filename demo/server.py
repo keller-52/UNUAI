@@ -166,12 +166,12 @@ def ai_plan(request_data, provider):
             else:validate_proposal(proposal, request_data["student_state"], count)
             attempts.append({"content": content, "validation": "passed", "usage": usage, "finish_reason": finish})
             return proposal, {"provider": provider["base_url"], "model": body.get("model", provider["model"]),
-                              "prompt_version": "paper-summary-1" if request_data.get("operation")=="summary" else "paper-workbook-3" if request_data.get("constraints",{}).get("custom_topic") else PROMPT_VERSION, "system_prompt": system,
+                              "prompt_version": "paper-summary-2" if request_data.get("operation")=="summary" else "paper-workbook-4" if request_data.get("constraints",{}).get("custom_topic") else PROMPT_VERSION, "system_prompt": system,
                               "attempts": attempts, "elapsed_seconds": round(time.monotonic()-started, 2)}
         except (json.JSONDecodeError, ValidationError) as exc:
             attempts.append({"content": content, "validation": str(exc), "usage": usage, "finish_reason": finish})
             messages += [{"role": "assistant", "content": content},
-                         {"role": "user", "content": "Repair your JSON: " + str(exc)}]
+                         {"role": "user", "content": "Repair the complete JSON object, not a patch or a partial list. Preserve every question and required field. Fix: " + str(exc)}]
     raise ValidationError("AI output could not be used after two attempts. Reduce the packet size or review the topic material. Details: " + attempts[-1]["validation"])
 
 

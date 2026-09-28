@@ -8,3 +8,5 @@
 .rich-text{line-height:1.7;overflow-wrap:anywhere}.rich-text p{margin:.6em 0}.rich-text pre{white-space:pre-wrap}.rich-text table{width:100%;border-collapse:collapse}.rich-text th,.rich-text td{padding:8px;border:1px solid #ccd4cb}#skipped-groups{margin:14px 0;padding:12px}#skipped-groups label{display:inline-flex;gap:6px;margin-right:16px}
 
 #learning-summary{white-space:pre-wrap}
+
+.generation-form{max-width:900px}.home-overview{max-width:950px}.view>details.card{margin:16px 0}details>summary{cursor:pointer;font-weight:600;padding:6px 0}.hint-line{display:flex;gap:6px}#ai-connection-banner{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 20px}#ai-connection-banner p{margin:0;font-size:13px}#summary-package-select{max-width:420px}#results .section-heading{flex-wrap:wrap}#learning-summary .rich-text{font-size:15px}#plan-path{max-height:450px;overflow:auto}#teacher-review{max-height:650px;overflow:auto}#plan-form textarea[name=goal]{min-height:60px}

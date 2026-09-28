@@ -1,5 +1,5 @@
 // Start a separate, empty target server; set PAPER_RESTORE_URL and PAPER_BACKUP_FILE.
-const {chromium}=require('playwright');
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const assert=require('node:assert/strict');const fs=require('node:fs');
 const base=process.env.PAPER_RESTORE_URL||'http://127.0.0.1:8766';
 const file=process.env.PAPER_BACKUP_FILE;

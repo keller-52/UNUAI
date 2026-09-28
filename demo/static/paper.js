@@ -165,12 +165,14 @@ export function paginate(container,packages,view){
    bookletPositions[p.id]=positions;
   }finally{reference.remove();}
  }
- for(const item of container.querySelectorAll('.teacher-item'))item.replaceWith(...item.childNodes);
+
  for(const rich of container.querySelectorAll('.rich-text')){
+  if(rich.closest('.hint-item,.teacher-item'))continue;
   for(const list of rich.querySelectorAll(':scope > ul,:scope > ol')){let i=1;for(const li of [...list.children]){const line=document.createElement('p');line.innerHTML=(list.tagName==='OL'?i+++'. ':'• ')+li.innerHTML;list.before(line);}list.remove();}
   for(const child of rich.children)child.classList.add('rich-block');
   rich.replaceWith(...rich.childNodes);
  }
+ for(const wrap of container.querySelectorAll('.lesson-prose')){for(const child of wrap.children)if(child.matches('p'))child.classList.add('lesson-paragraph');wrap.replaceWith(...wrap.childNodes);}
  const originals=[...container.querySelectorAll('.print-page')];
  for(const page of originals){
   const group=page.dataset.package;

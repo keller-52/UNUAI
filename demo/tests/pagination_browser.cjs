@@ -1,5 +1,5 @@
 // Isolated synthetic print responses; no issued package is changed.
-const {chromium}=require('playwright');const assert=require('node:assert/strict');const fs=require('node:fs');
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');const assert=require('node:assert/strict');const fs=require('node:fs');
 const base=process.env.PAPER_TEST_URL||'http://127.0.0.1:8765';const output=process.env.PAPER_TEST_OUTPUT||require('node:os').tmpdir();
 (async()=>{const browser=await chromium.launch();try{
  const context=await browser.newContext();const data=await(await context.request.get(base+'/api/bootstrap')).json();

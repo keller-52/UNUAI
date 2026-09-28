@@ -17,7 +17,7 @@ export function markdown(value){
   close();if(!line.trim())continue;
   const head=line.match(/^(#{1,6})\s+(.+)/);if(head){const n=Math.min(4,head[1].length+1);out+=`<h${n}>${inline(head[2])}</h${n}>`;}
   else if(/^>\s?/.test(line))out+='<blockquote>'+inline(line.replace(/^>\s?/,''))+'</blockquote>';
-  else out+='<p>'+inline(line)+'</p>';
+  else out+='<p>'+inline(line.trimStart())+'</p>';
  }
  close();if(fence)out+='<pre><code>'+escapeHTML(code.join('\n'))+'</code></pre>';
  return '<div class="rich-text">'+out+'</div>';

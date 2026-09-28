@@ -27,7 +27,7 @@ def validate_workbook(p,state,count,batch_size=6):
         require(q.get('correct_option') in list('ABCD'),'Invalid answer')
         require(len(set(o['text'].strip() for o in options))==4,'Options must be distinct')
         hints=q.get('hints')
-        require(isinstance(hints,list) and len(hints)==2,'Two hints required')
+        require(isinstance(hints,list) and len(hints)==2,f'Q{i}: hints must be an array of exactly two nonempty strings: [strategy_hint, specific_hint]')
         for hint in hints:text(hint,'hint',350)
         require(q.get('origin') in ('ai_generated','bank_adapted'),'Invalid question origin')
         if q['origin']=='bank_adapted':text(q.get('reference_id'),'Reference ID',80)

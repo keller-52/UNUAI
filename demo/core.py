@@ -8,7 +8,7 @@ import json
 import re
 from pathlib import Path
 
-VERSION = "0.5.0"
+VERSION = "0.6.0"
 PROMPT_VERSION = "paper-author-2"
 MAX_NODES = 8
 

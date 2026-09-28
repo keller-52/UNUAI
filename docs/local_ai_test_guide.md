@@ -1,8 +1,8 @@
-# PAPER AI 0.5 本地 AI 测试与验收要求
+# PAPER AI 0.6 本地 AI 测试与验收要求
 
 > **文档分类：当前文档。** 当前测试与验收口径以本文为准；完整分类见 [文档索引](README.md)。
 
-更新：2026-09-28。以实际检出的完整提交号为准。上一版用户已完成人工实测，本轮针对六项反馈回归；测试指南本身不是 PASS 报告。配套：[人工操作指南](manual_operation_guide.md)、[本轮实现和证据](product_05_status.md)。
+更新：2026-09-28。以实际检出的完整提交号为准。上一版用户已完成人工实测，本轮针对最新五项反馈回归；测试指南本身不是 PASS 报告。配套：[人工操作指南](manual_operation_guide.md)、[本轮实现和证据](product_06_status.md)。
 
 ## 1. 准备与无付费自动检查
 
@@ -12,7 +12,7 @@
 python -m unittest discover -s demo/tests -p 'test_*.py' -v
 npm install --no-save playwright @napi-rs/canvas
 npx playwright install chromium
-python demo/server.py --port 8765 --data demo/data/local-validation-05.sqlite3
+python demo/server.py --port 8765 --data demo/data/local-validation-06.sqlite3
 ```
 
 另开终端：
@@ -20,11 +20,13 @@ python demo/server.py --port 8765 --data demo/data/local-validation-05.sqlite3
 ```bash
 node demo/tests/scanner_test.cjs
 node demo/tests/release05_test.cjs
+node demo/tests/release06_test.cjs
 node demo/tests/browser_smoke.cjs
 node demo/tests/product_browser.cjs
 node demo/tests/pagination_browser.cjs
 node demo/tests/workbook_browser.cjs
 node demo/tests/release05_browser.cjs
+node demo/tests/release06_browser.cjs
 ```
 
 基线 47 项 Python 检查；记录实际数量，不机械凑数。JS 语法检查可用 Bash 的 `for file in demo/static/*.js; do node --input-type=module --check < "$file" || exit 1; done`；PowerShell 使用 `Get-ChildItem demo/static/*.js | ForEach-Object { Get-Content -Raw $_.FullName | node --input-type=module --check; if ($LASTEXITCODE -ne 0) { throw "Syntax check failed" } }`。
@@ -36,8 +38,8 @@ node demo/tests/release05_browser.cjs
 现有项目 DeepSeek 凭据可在本地使用，不能写入日志、仓库或附件。先以少量真实调用验证新流程，不把同一密钥发给其他平台。
 
 ```bash
-python demo/tests/live_workbook.py --run --size 10 --language zh --output test-results/live-05-zh
-python demo/tests/live_workbook.py --run --size 5 --language en --output test-results/live-05-en
+python demo/tests/live_workbook.py --run --size 10 --language zh --output test-results/live-06-zh
+python demo/tests/live_workbook.py --run --size 5 --language en --output test-results/live-06-en
 ```
 
 每次命令一次真实生成、最多两次模型尝试；不自动运行付费测试。输出 synthetic-package.json 与报告，只含工程测试档案。该脚本不批准学习包，也不替代逐题内容审核或浏览器操作。
@@ -46,7 +48,7 @@ python demo/tests/live_workbook.py --run --size 5 --language en --output test-re
 
 其他平台使用自己对应的可用账号/密钥执行至少一个小包及总结；没有凭据时标 NOT RUN。六种协议模拟通过不能写成全部平台真实调用通过。平台准确范围、官方依据和鉴权限制见[平台表](product_05_status.md#平台范围)。
 
-## 3. 0.5 验收矩阵
+## 3. 0.6 验收矩阵
 
 | 编号 | 内容 | 必须满足 |
 |---|---|---|
@@ -67,14 +69,26 @@ PDF 导出自动查找已安装的 Chrome/Edge，或使用 `PAPER_AI_BROWSER`。
 
 备份恢复在另一个空库/8766 服务进行，用 `PAPER_RESTORE_URL` 和 `PAPER_BACKUP_FILE` 指向实际测试备份后运行 `node demo/tests/restore_browser.cjs`。新版自由指导与 skipped_batches 必须另有真实保存/恢复样本。
 
-## 4. 实物复测与报告
+## 4. 本轮新增验收
+
+- 三个工作区：生成题目内容、学习总结、扫描上传。首页宣传/概论保留并描述当前流程；无旧规则切换、旧方程诊断和示例入口。批量/备份默认折叠；既有用户数据兼容保留。
+- `release06_browser.cjs` 用模拟 AI 验证最新生成请求、未配置 AI 时弹窗、审核、独立总结、双语、提示编号同排、每条提示勾选框、每题答案括号和两个字宽正文缩进。它不证明真实模型生成质量。
+- `release06_test.cjs` 默认使用合成偏移码条，测试错包与破损校验拒绝。可追加本地两张实拍路径：`node demo/tests/release06_test.cjs /path/first.jpg /path/second.jpg`。该专用样本预期纸码 689634，Q9=A/1/B，Q10=B/1/C；不要将此真值应用到其他纸张。原图不提交仓库。
+- 浏览器实拍可设置 `PAPER_PHOTO_DIR` 为本地两张附件所在目录（文件名见脚本）后运行 `release06_browser.cjs`，检查真正的上传→定位→识别→表格，不只检查合成 Canvas。
+- 实际 PDF 逐页检查讲解、题册、提示核对册；每个提示后一个空框，题目后有括号；提示序号不能独占一行。长提示完整换行，题间分隔线保留，不溢出页脚。
+- 提示词版本 `paper-workbook-4` / `paper-summary-2`。逐组人工确认“选择情况｜情况分析｜跳转内容”；条件不得依赖未来/未做题；“其他情况”必须有直接指令；重复路线有停止条件。总结只写情况和措施，不显示内部字段名。
+- 真实生成出现缺提示等结构错误时，修复请求必须指出题号并要求返回完整包；失败不能用规则包替代。至少记录一次默认 30 题，不以单次通过推断失败率。
+
+## 5. 实物复测与报告
 
 按[人工指南](manual_operation_guide.md)开始前备齐全部纸张，纸上环节断网，中途不调用 AI 或补印。至少两条不同路线；同包构造两份答案时使用独立纸张和样本编号，不能混成一份记录。扫描后教师根据真实路线确认跳过组。
 
-新建 `docs/local_validation_05_results.md`，记录提交号、日期、系统、浏览器、依赖、命令、日志、实际 PDF、逐页照片、真值、原始识别、人工修正、耗时、平台/协议及模型。每项状态用 PASS / FAIL / BLOCKED / NOT RUN，保留失败与修复复测过程。
+新建 `docs/local_validation_06_results.md`，记录提交号、日期、系统、浏览器、依赖、命令、日志、实际 PDF、逐页照片、真值、原始识别、人工修正、耗时、平台/协议及模型。每项状态用 PASS / FAIL / BLOCKED / NOT RUN，保留失败与修复复测过程。
 
 分开给出自动检查、浏览器/PDF、真实 AI（按平台）、实物四层结论；任一层未执行不得写“全部通过”。原始识别率不等于校正后正确率；实拍失败不能从分母删除；合成数据和真实 API 不能证明教学效果。任何密钥、私有配置、正式数据库或未经授权学生照片不得上传。
 
-已有证据：47 项 Python + JS 语法 + 合成扫描/Markdown通过；真实 DeepSeek 中文30题一次通过43.38秒。浏览器下载失败，本次实际 PDF/视觉和新阈值实物复测尚未完成。用户完成的是上一版人工实测，不把新版本状态倒填 PASS。
+本轮证据与失败记录见 [0.6 进度](product_06_status.md)。不得沿用旧版“浏览器未运行”的结论，也不得把浏览器生成 PDF 与本机一键导出混作同一证据。
 
 每次功能修改同步本指南、人工指南及当前进度，正式文/理展示选题和扩展题库仍待后续；平台接入已不再延期。
+
+新增审核提醒：若三栏分流表的“选择情况”明确引用本组之后的题号，页面会显示题组/题号警示。请在草稿 JSON 中修改条件，再保存审核；这是辅助提醒，不执行分数规则，也不证明所有自然语言逻辑已正确。
