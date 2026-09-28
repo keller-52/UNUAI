@@ -27,7 +27,7 @@ fs.mkdirSync(output,{recursive:true});
   assert.equal(learner.state.status,'unknown');await page.reload();
   await page.waitForSelector(`#student-select option[value="${learner.id}"]`,{state:'attached'});
   assert.equal(await page.inputValue('#student-select'),learner.id);
-  await page.uncheck('#custom-topic');await page.click('#start-button');await page.fill('[name="goal"]','Preserve this teaching goal');
+  await page.click('#start-button');await page.uncheck('#custom-topic');await page.fill('[name="goal"]','Preserve this teaching goal');
   await page.selectOption('[name="language"]','en');await page.selectOption('#ui-language','zh');
   assert.equal(await page.inputValue('[name="goal"]'),'Preserve this teaching goal');assert.equal(await page.inputValue('[name="language"]'),'en');
   await page.selectOption('#ui-language','en');
