@@ -1,3 +1,5 @@
+> **文档分类：历史文档。** 早期 DeepSeek 单提供商接入记录。 本文保留当时版本的真实设计/验收记录，不代表当前 0.5；当前入口见 [文档索引](README.md) 与 [0.5 状态](product_05_status.md)。
+
 # DeepSeek 接入与验证
 
 后续 Windows 0.2 真实两轮复测、空 JSON 问题及处理见[0.2 本地验收报告](local_validation_02_results.md)。
