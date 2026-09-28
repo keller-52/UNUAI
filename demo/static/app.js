@@ -21,7 +21,7 @@ async function refresh(){
  $('#student-select').innerHTML=data.students.length?data.students.map(s=>`<option value="${esc(s.id)}">${esc(s.label)}</option>`).join(''):'<option value="">No learner yet</option>';
  $('#student-select').value=studentId;
  $('#mode-status').textContent=data.provider.configured?'Live AI configured':'AI not configured';
- $('#ai-connection-label').textContent=data.provider.configured?tr('AI configured: ')+data.provider.model:tr('AI not configured');
+ $('#ai-connection-label').textContent=data.provider.configured?'AI configured: '+data.provider.model:'AI not configured';
  renderOverview();renderScanSelect();renderBatch();
 }
 function renderOverview(){
