@@ -1,86 +1,66 @@
-> 当前版本 **0.5**：[修订进度](docs/product_05_status.md) · [人工操作指南](docs/manual_operation_guide.md) · [本地 AI 验收要求](docs/local_ai_test_guide.md)。新增自由分流指导、Markdown、直接 PDF 下载、面积扫描和多平台直连。
+# UNUAI — PAPER AI
 
-# UNUAI
+> **文档分类：总括性文档。** 当前版本：**0.5**（2026-09-28）。完整文档分类见 [docs/README.md](docs/README.md)。
 
-本仓库用于准备 **2026 全球青少年人工智能未来创新竞赛（澳门中学生赛区）** 项目。
+本仓库用于准备 **2026 全球青少年人工智能未来创新竞赛（澳门中学生赛区）** 的 PAPER AI 项目。
 
-## 当前项目：PAPER AI
+## 项目一句话
 
-**PAPER AI — Compiling Adaptive AI Education into Paper**
+**PAPER AI: Compiling Adaptive AI Education into Paper**
 
-核心思想：让 AI 不必持续在线，而是在有限的联网/设备使用时段内理解学生、规划教学，并把未来一段时间的个性化教学策略“编译”成可独立运行的纸质媒体。学生离线学习后，纸面留下学习轨迹；下一次接入 AI 时，系统再根据这些轨迹更新下一轮纸质学习包。
-
-核心闭环：
+AI 在有限的接入时段内分析学生、设计教学内容与下一步指导，并把未来一段时间的个性化学习策略编译成可以脱离网络和学生设备独立运行的纸质学习包；学习结束后再扫描纸面记录，更新学生状态并生成下一轮。
 
 ```text
 AI → Paper → Human → Paper Trace → AI
 ```
 
-这不是“AI 生成 worksheet”，而是研究一种 **Intermittent AI Education（间歇式 AI 教育）**：AI 只在关键节点出现，纸张承担中间时段的教学逻辑与学习记录。
+当前 0.5 不再把“自适应”限制为死板的机器分流规则。AI 可以在核对册中写自然语言指导，例如根据正确数、特定错题或知识点表现决定补强、进阶、回看或结束；程序只验证题目/组号引用等最小结构，教师负责审核教学逻辑。
 
-## 当前赛道定位
+## 当前 Demo 0.5
 
-PAPER AI 最自然地对应：
+```text
+教师自定义主题
+→ AI 讲解 + 2–3 个题组（每组 5–10 题）+ 离线指导
+→ 教师审核/冻结
+→ 题册 + 核对册 + 记录纸 + 教师版
+→ 学生整组作答后核对并按纸面指导继续
+→ 最后统一拍照/扫描
+→ 人工校对与确认未分配题组
+→ AI 学情总结
+→ 同主题下一轮
+```
 
-- **AI for Less Developed Countries｜人工智能支援欠发达地区**：适用于网络、电力、设备不稳定或不足的地区。
+主要新增能力包括 Markdown 内容、本机 Chrome/Edge 直接 PDF 导出、面积式 OMR、多页记录、中英界面，以及 OpenAI Responses、Azure Responses、Claude Messages、Gemini generateContent、DashScope 和 Chat Completions 等协议适配。**协议适配/模拟通过不等于所有平台都已用真实密钥验证。**
 
-如果后续决定坚持 **AI for Education｜人工智能促进教育**，也可以把研究重点调整为：
-
-- 低屏幕、低设备依赖的个性化学习；
-- AI 与纸质媒体协同的新型教学模式；
-- AI 出现频率与个性化学习效果之间的关系。
-
-最终参赛组别将在项目方案进一步确定后锁定。
-
-## 运行 Demo
-
-当前 Demo 0.4 支持教师自定义主题、AI 先讲解后出题、每组 5–10 题的整批核对与离线分流、多页记录，以及基于已确认记录的学情总结与下一轮生成。
-
-建议按以下顺序使用：
-
-- [0.4 人工操作指南](docs/manual_operation_guide.md)
-- [0.4 本地 AI 测试与验收要求](docs/local_ai_test_guide.md)
-- [0.4 当前实现与验证状态](docs/product_04_status.md)
-
-本地单教师 Demo 使用 Python 3.10+，运行应用无需安装额外 Python 依赖：
+启动：
 
 ```bash
 python demo/launch.py
 ```
 
-打开 **http://127.0.0.1:8765**。Windows 可双击 `demo/start-demo.bat`。
+浏览器打开 `http://127.0.0.1:8765`；Windows 也可双击 `demo/start-demo.bat`。
 
-自定义主题需要配置真实 AI；规则演示只用于兼容与工程测试，不能冒充真实 AI 结果。所有离线题组、核对内容和记录纸应在开始前一次打印，学生完成整组后再核对并按预先设计的规则进入下一题组，中途无需联网或再次调用 AI。
+## 先看这几份
 
-## 文档
+- [文档总索引：总括 / 当前 / 历史](docs/README.md)
+- [0.5 实现与验证状态](docs/product_05_status.md)
+- [0.5 人工操作指南](docs/manual_operation_guide.md)
+- [0.5 本地 AI 测试与验收要求](docs/local_ai_test_guide.md)
+- [项目构想](docs/project_idea.md)
+- [当前实施路线](docs/implementation_roadmap.md)
 
-- [竞赛章程整理](docs/competition_rules.md)
-- [PAPER AI 项目构想](docs/project_idea.md)
-- [0.4 人工操作指南](docs/manual_operation_guide.md)
-- [0.4 本地 AI 测试与验收要求](docs/local_ai_test_guide.md)
-- [0.4 当前实现与验证状态](docs/product_04_status.md)
-- [程序框架与模块职责](docs/system_architecture.md)
-- [完整操作流程与纸张设计](docs/operation_workflow.md)
-- [数据协议与 AI 接口](docs/data_contracts.md)
-- [自主出题协议](docs/ai_question_authoring.md)
-- [JSON 往返示例](examples/round_trip.json)
-- [研究问题、实验与证据计划](docs/research_plan.md)
-- [参赛材料内容框架](docs/submission_framework.md)
-- [实施路线与任务清单](docs/implementation_roadmap.md)
-- [0.2 历史验收报告](docs/local_validation_02_results.md)
-- [0.2 历史实物检测指南](docs/manual_physical_validation.md)
-- [人工实物检测记录模板](docs/manual_physical_test_record.md)
+## 当前证据边界
 
-## 当前阶段
+0.5 已记录 **47 项 Python 自动检查通过**，并有一次真实 DeepSeek 中文默认 3×10（30 题）自由指导学习包生成成功的工程记录。上一版人工实测已经完成并促成 0.5 六项修订，但 **0.5 自身的新 PDF、面积扫描、自由指导与多平台改动仍需按新版指南复测**。
 
-截至 2026-09-27，0.4 已有 **42 项自动检查通过**记录，并完成一次真实 DeepSeek 15 题离线分流包与一次学情总结的工程验证。
+不能把以下内容写成已证明：
 
-仍未完成的当前版验收包括：0.4 浏览器 / PDF 复测、默认 30 题、多主题与中英文真实 AI 稳定性、真实打印填写与手机多页扫描闭环，以及学情总结到下一轮的完整实物证据。0.2 的浏览器 / PDF 通过结果只作为历史基线，不能代替 0.4 复测。
+- 协议模拟 = 所有平台真实调用稳定；
+- 合成扫描 = 实拍扫描准确率；
+- 工程包生成成功 = 任意学科内容正确；
+- 纸面流程可运行 = 已证明学习增益；
+- 短期测试 = 已找到最低有效 AI 接入频率。
 
-明确延期：各大主流平台原生 API 适配、正式展示用两个较难文 / 理知识点的最终选择，以及更长期的学习效果 / AI 接入间隔研究。
-
-合成作答、规则演示和工程测试均不能证明真实学习效果。详细 PASS / FAIL / BLOCKED / NOT RUN 口径见 [本地 AI 测试与验收要求](docs/local_ai_test_guide.md)。
-
-下一步验证最核心的问题仍是：
+当前最核心研究问题仍是：
 
 > **How much of an adaptive AI tutor can be compiled into paper, and how infrequently does AI need to appear while still preserving meaningful personalization?**
