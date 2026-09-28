@@ -2,7 +2,7 @@
 
 # UNUAI — PAPER AI
 
-> **文档分类：总括性文档。** 当前版本：**0.5**（2026-09-28）。完整文档分类见 [docs/README.md](docs/README.md)。
+> **文档分类：总括性文档。** 当前版本：**0.6**（2026-09-28）。完整文档分类见 [docs/README.md](docs/README.md)。
 
 本仓库用于准备 **2026 全球青少年人工智能未来创新竞赛（澳门中学生赛区）** 的 PAPER AI 项目。
 
@@ -16,7 +16,7 @@ AI 在有限的接入时段内分析学生、设计教学内容与下一步指�
 AI → Paper → Human → Paper Trace → AI
 ```
 
-当前 0.5 不再把“自适应”限制为死板的机器分流规则。AI 可以在核对册中写自然语言指导，例如根据正确数、特定错题或知识点表现决定补强、进阶、回看或结束；程序只验证题目/组号引用等最小结构，教师负责审核教学逻辑。
+当前版本不再把“自适应”限制为死板的机器分流规则。AI 可以在核对册中写自然语言指导，例如根据正确数、特定错题或知识点表现决定补强、进阶、回看或结束；程序只验证题目/组号引用等最小结构，教师负责审核教学逻辑。
 
 ## 当前 Demo 0.5
 
@@ -66,3 +66,5 @@ python demo/launch.py
 当前最核心研究问题仍是：
 
 > **How much of an adaptive AI tutor can be compiled into paper, and how infrequently does AI need to appear while still preserving meaningful personalization?**
+
+本次更新：优化生成提示词和局部反馈修复，统一双语排版，预留一文一理展示题库。通用知识单元内容扩展已取消。

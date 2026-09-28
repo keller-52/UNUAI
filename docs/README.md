@@ -2,7 +2,7 @@
 
 # UNUAI 文档索引
 
-> **文档分类：总括性文档。** 更新：2026-09-28。当前产品版本为 **PAPER AI 0.5**，代码实现基线为 `4e04b620352db32f9237368a69bcb1fa12dde6a7`。
+> **文档分类：总括性文档。** 更新：2026-09-28。当前产品版本为 **PAPER AI 0.6**，以当前 main 提交号及实验记录为准。
 > 本页是仓库文档的唯一分类入口。历史文档保留用于追溯，不应拿来替代当前操作或验收要求。
 
 ## 1. 总括性文档
@@ -14,15 +14,18 @@
 | [2026 竞赛章程整理](competition_rules.md) | 当前澳门赛区规则摘要；以官方原文为准 |
 | [研究问题、实验与证据计划](research_plan.md) | 工程、可用性与教育效果证据如何取得 |
 | [参赛材料内容框架](submission_framework.md) | Project Introduction、Research Report、Poster、Video 的事实框架 |
-| [实施路线与任务清单](implementation_roadmap.md) | 从 0.5 复测到交件的当前 To-do |
+| [实施路线与任务清单](implementation_roadmap.md) | 当前开发、实测、展示内容与已取消事项 |
 
-## 2. 当前文档（0.5）
+## 2. 当前文档（0.6）
 
 | 文档 | 当前职责 |
 |---|---|
-| [0.5 实现与验证状态](product_05_status.md) | 六项实测反馈后的功能、证据与限制 |
-| [0.5 人工操作指南](manual_operation_guide.md) | 下载、配置、生成、审核、PDF、纸上学习、扫描 |
-| [0.5 本地 AI 测试与验收要求](local_ai_test_guide.md) | 自动测试、真实 AI、浏览器/PDF、实物复测 |
+| [0.6 当前状态](product_06_status.md) | 当前功能、证据与限制 |
+| [提示词稳定性](prompt_stability_results.md) | 多轮真实生成、失败与改进记录 |
+| [展示题库预留](showcase_slots.md) | 一文一理位置与取消通用扩展的决定 |
+| [0.5 平台协议说明](product_05_status.md) | 平台表仍适用，其他内容为上一版快照 |
+| [人工操作指南](manual_operation_guide.md) | 下载、配置、生成、审核、PDF、纸上学习、扫描 |
+| [本地 AI 测试与验收要求](local_ai_test_guide.md) | 自动测试、真实 AI、浏览器/PDF、实物复测 |
 | [0.5 实物复测记录模板](manual_physical_test_record.md) | 人工真值、照片、扫描、打印问题记录 |
 | [当前系统架构](system_architecture.md) | 0.5 实际模块、AI/程序/教师职责边界 |
 | [当前操作流程与纸张设计](operation_workflow.md) | 整批作答、自然语言指导、最终扫描闭环 |

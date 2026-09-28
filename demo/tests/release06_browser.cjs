@@ -1,6 +1,7 @@
 // Current three-workspace flow, mocked AI generation; no paid calls.
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const {execFileSync}=require('node:child_process');const assert=require('node:assert/strict');const fs=require('node:fs');
+const showcase=JSON.parse(fs.readFileSync('demo/showcase/manifest.json','utf8')).slots;
 const fixture=JSON.parse(execFileSync(process.env.PYTHON||'python',['-c',`
 import sys,tempfile,json
 from pathlib import Path
@@ -21,14 +22,14 @@ with tempfile.TemporaryDirectory() as d:
 `],{encoding:'utf8'}));
 (async()=>{const base=process.env.PAPER_TEST_URL||'http://127.0.0.1:8765',browser=await chromium.launch(),out=process.env.PAPER_TEST_OUTPUT;try{
  const page=await browser.newPage({viewport:{width:1400,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));let generated=false,configured=false;
- await page.route('**/api/bootstrap',r=>r.fulfill({json:{version:'0.6',students:[{id:'S',label:'Synthetic learner',synthetic:true,state:{},grade:'Secondary'}],packages:generated?[{...fixture.packet,title:fixture.packet.plan.title}]:[],diagnostic:[],provider_presets:fixture.presets,provider:{configured,model:'mock',base_url:'https://api.deepseek.com',protocol:'chat',provider:'deepseek'}}}));
+ await page.route('**/api/bootstrap',r=>r.fulfill({json:{version:'0.6',showcase_slots:showcase,students:[{id:'S',label:'Synthetic learner',synthetic:true,state:{},grade:'Secondary'}],packages:generated?[{...fixture.packet,title:fixture.packet.plan.title}]:[],diagnostic:[],provider_presets:fixture.presets,provider:{configured,model:'mock',base_url:'https://api.deepseek.com',protocol:'chat',provider:'deepseek'}}}));
  await page.route('**/api/packages/'+fixture.packet.id,r=>r.fulfill({json:fixture.packet}));
  await page.route('**/api/generate',r=>{const body=r.request().postDataJSON();assert.equal(body.mode,'live');assert.equal(body.config.custom_topic,true);assert.equal(body.config.topic,'进位加法');assert.equal(body.config.include_reference_bank,false);generated=true;return r.fulfill({status:201,json:fixture.packet});});
  await page.route('**/api/packages/*/approve',r=>{fixture.packet.status='issued';return r.fulfill({json:fixture.packet});});
  await page.route('**/api/packages/*/summary',r=>r.fulfill({json:{content:{summary:'情况：首次答案记录不足。',next_steps:['措施：先完成题组 1。']}}}));
- await page.goto(base);await page.selectOption('#ui-language','zh');
+ await page.goto(base);await page.selectOption('#ui-language','en');assert.equal(await page.locator('#ai-connection-label').innerText(),'AI not configured');await page.selectOption('#ui-language','zh');assert.equal(await page.locator('#ai-connection-label').innerText(),'AI 未配置');await page.selectOption('#ui-language','en');assert.equal(await page.locator('#ai-connection-label').innerText(),'AI not configured');await page.selectOption('#ui-language','zh');
  assert.equal(await page.locator('nav button').count(),3);assert.equal(await page.locator('#custom-topic,#planning-mode,#seed-button').count(),0);
- await page.click('[data-tab=plan]');assert.equal(await page.locator('#manage-panel').getAttribute('open'),null);
+ await page.click('[data-tab=plan]');await page.locator('.showcase-panel').evaluate(e=>e.open=true);assert.equal(await page.locator('.showcase-slot').count(),2);assert.match(await page.locator('#showcase-slots').textContent(),/人文展示题库/);assert.equal(await page.locator('#manage-panel').getAttribute('open'),null);
  await page.fill('[name=topic]','进位加法');await page.fill('[name=background]','理解凑十法和进位加法。');await page.fill('[name=goal]','完成简单的进位加法。');
  await page.click('#generate-button');await page.waitForSelector('#settings-dialog[open]');assert.match(await page.locator('#notice').innerText(),/配置/);
  await page.click('[data-close=settings-dialog]');configured=true;await page.reload();await page.click('[data-tab=plan]');
@@ -47,12 +48,13 @@ with tempfile.TemporaryDirectory() as d:
   }
  }
  await page.click('#home-button');assert(await page.locator('#overview').isVisible());
- for(const lang of ['en','zh']){await page.selectOption('#ui-language',lang);await page.click('[data-tab=plan]');if(out){fs.mkdirSync(out,{recursive:true});await page.screenshot({path:out+'/studio-'+lang+'.png',fullPage:true});}}
+ for(const lang of ['en','zh','en','zh']){await page.selectOption('#ui-language',lang);if(lang==='en'&&await page.locator('#notice').isVisible())assert.match(await page.locator('#notice').innerText(),/Package approved/);assert.match(await page.locator('#showcase-slots').textContent(),lang==='zh'?/理科展示题库/:/Science showcase/);assert.match(await page.locator('#ai-connection-label').innerText(),lang==='zh'?/AI 已配置/:/AI configured/);await page.click('[data-tab=plan]');if(out){fs.mkdirSync(out,{recursive:true});await page.screenshot({path:out+'/studio-'+lang+'.png',fullPage:true});}}
  for(const view of ['booklet','support']){
   const print=await browser.newPage();await print.route('**/api/packages/'+fixture.packet.id,r=>r.fulfill({json:fixture.packet}));await print.goto(base+'/print.html?id='+fixture.packet.id+'&view='+view);await print.waitForFunction(()=>document.body.dataset.ready||document.body.dataset.error);assert.equal(await print.getAttribute('body','data-error'),null);
   if(view==='booklet'){assert.equal(await print.locator('.answer-slot').count(),12);assert.equal(await print.locator('.lesson-paragraph').first().evaluate(e=>getComputedStyle(e).textIndent),'32px');}
   else{assert.equal(await print.locator('.hint-check').count(),24);assert.equal(await print.locator('.hint-item').count(),12);const geometry=await print.locator('.hint-line').evaluateAll(lines=>lines.map(l=>{const n=l.querySelector('b').getBoundingClientRect(),p=l.querySelector('p').getBoundingClientRect();return Math.abs(n.top-p.top)}));assert(geometry.every(d=>d<5),'Hint number and prose must share a line');}
   if(out)await print.pdf({path:out+'/current-'+view+'.pdf',format:'A4',preferCSSPageSize:true,printBackground:true});await print.close();
  }
+ await page.setViewportSize({width:390,height:844});await page.click('[data-tab=plan]');await page.locator('.showcase-panel').evaluate(e=>e.open=true);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);if(out)await page.screenshot({path:out+'/studio-mobile.png',fullPage:true});
  assert.deepEqual(errors,[]);console.log('PASS: latest-only authoring, missing-AI prompt, three workspaces, summary, bilingual UI, inline hints/ticks, answer slots and paragraph indentation');
 }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

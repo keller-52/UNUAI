@@ -165,3 +165,16 @@ def topic_state(student,evaluations,config):
     state.update(unit_id=config['topic_id'],topic=config['topic'],status='observations_available' if state['evidence'] else 'unknown',hypotheses=[],review_required=False,
                  note='Descriptive topic-specific evidence only; no fixed-subject readiness heuristic or established mastery.')
     return state
+
+
+def feedback_scope_issues(proposal,batch_size):
+    """Narrow authoring check; does not impose scores, branch counts or route order."""
+    import re
+    issues=[]
+    for b in proposal.get('batch_feedback',[]):
+        for line in b.get('guidance','').splitlines():
+            cells=line.strip().strip('|').split('|')
+            if len(cells)<3:continue
+            future=sorted({int(q) for q in re.findall(r'\bQ(\d+)',cells[0]) if int(q)>b['batch']*batch_size})
+            if future:issues.append(f"Group {b['batch']} condition refers to future questions: "+', '.join('Q'+str(q) for q in future))
+    return issues

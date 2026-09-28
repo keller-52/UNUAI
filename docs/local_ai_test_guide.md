@@ -29,7 +29,7 @@ node demo/tests/release05_browser.cjs
 node demo/tests/release06_browser.cjs
 ```
 
-基线 49 项 Python 检查；记录实际数量，不机械凑数。JS 语法检查可用 Bash 的 `for file in demo/static/*.js; do node --input-type=module --check < "$file" || exit 1; done`；PowerShell 使用 `Get-ChildItem demo/static/*.js | ForEach-Object { Get-Content -Raw $_.FullName | node --input-type=module --check; if ($LASTEXITCODE -ne 0) { throw "Syntax check failed" } }`。
+基线 53 项 Python 检查；记录实际数量，不机械凑数。JS 语法检查可用 Bash 的 `for file in demo/static/*.js; do node --input-type=module --check < "$file" || exit 1; done`；PowerShell 使用 `Get-ChildItem demo/static/*.js | ForEach-Object { Get-Content -Raw $_.FullName | node --input-type=module --check; if ($LASTEXITCODE -ne 0) { throw "Syntax check failed" } }`。
 
 脚本边界：`release05_test.cjs` 检查合成内圈填涂和 Markdown；`release05_browser.cjs` 的 PDF 下载使用模拟 HTTP 内容，仅证明按钮下载交互，不能代替实际 PDF 导出。Python PDF 检查使用模拟浏览器进程。`workbook_browser.cjs` 仍保留旧结构题组夹具作兼容回归。旧 live 脚本不能充抵新版自由指导验收。
 
@@ -76,7 +76,7 @@ PDF 导出自动查找已安装的 Chrome/Edge，或使用 `PAPER_AI_BROWSER`。
 - `release06_test.cjs` 默认使用合成偏移码条，测试错包与破损校验拒绝。可追加本地两张实拍路径：`node demo/tests/release06_test.cjs /path/first.jpg /path/second.jpg`。该专用样本预期纸码 689634，Q9=A/1/B，Q10=B/1/C；不要将此真值应用到其他纸张。原图不提交仓库。
 - 浏览器实拍可设置 `PAPER_PHOTO_DIR` 为本地两张附件所在目录（文件名见脚本）后运行 `release06_browser.cjs`，检查真正的上传→定位→识别→表格，不只检查合成 Canvas。
 - 实际 PDF 逐页检查讲解、题册、提示核对册；每个提示后一个空框，题目后有括号；提示序号不能独占一行。长提示完整换行，题间分隔线保留，不溢出页脚。
-- 提示词版本 `paper-workbook-4` / `paper-summary-2`。逐组人工确认“选择情况｜情况分析｜跳转内容”；条件不得依赖未来/未做题；“其他情况”必须有直接指令；重复路线有停止条件。总结只写情况和措施，不显示内部字段名。
+- 提示词版本 `paper-workbook-5` / `paper-summary-2`。逐组人工确认“选择情况｜情况分析｜跳转内容”；条件不得依赖未来/未做题；“其他情况”必须有直接指令；重复路线有停止条件。总结只写情况和措施，不显示内部字段名。
 - 真实生成出现缺提示等结构错误时，修复请求必须指出题号并要求返回完整包；失败不能用规则包替代。至少记录一次默认 30 题，不以单次通过推断失败率。
 
 ## 5. 实物复测与报告
@@ -89,8 +89,27 @@ PDF 导出自动查找已安装的 Chrome/Edge，或使用 `PAPER_AI_BROWSER`。
 
 本轮证据与失败记录见 [0.6 进度](product_06_status.md)。不得沿用旧版“浏览器未运行”的结论，也不得把浏览器生成 PDF 与本机一键导出混作同一证据。
 
-每次功能修改同步本指南、人工指南及当前进度，正式文/理展示选题和扩展题库仍待后续；平台接入已不再延期。
+每次功能修改同步本指南、人工指南及当前进度，一文一理展示内容待选；通用知识单元内容扩展已取消；平台接入已不再延期。
 
 新增审核提醒：若三栏分流表的“选择情况”明确引用本组之后的题号，页面会显示题组/题号警示。请在草稿 JSON 中修改条件，再保存审核；这是辅助提醒，不执行分数规则，也不证明所有自然语言逻辑已正确。
 
 总结请求已与出题约束分离；`test_release06.py` 检查总结不携带出题数量指令、缺提示错误能指出具体题号。
+
+## 6. 提示词稳定性与界面回归
+
+可选真实调用（每轮 3 个测试主题；每包最多 2 次模型调用）：
+
+```bash
+python demo/tests/prompt_stability.py --run --rounds 2 --output test-results/prompt-stability
+```
+
+覆盖中文理科 30 题、英文人文 15 题、中文虚构规则 30 题。报告分别记录结构结果、针对性内容检查、模型、提示词版本、修复次数、耗时；原始合成学习包留在输出目录。自动检查不会证明所有答案或教学路线正确，必须抽查原文。付费测试不进入 CI。
+
+`test_prompt_iteration.py` 验证局部反馈修复不改变题目和讲解、允许向前跳转、两个展示位置均为空。`release06_browser.cjs` 增加题库卡片、中英反复切换及移动端溢出检查。未配置状态必须在中英之间正确切换。
+
+打印复测重点：浅色表头、三栏反馈跨页、长提示与勾选框；记录纸定位块和填涂坐标不得改变。展示卡片应显示待选，不应包含自行选定知识点或可执行的空题库。
+
+真实定向修复复测可运行 `python demo/tests/prompt_repair_live.py --run --output test-results/repair <合成包路径...>`；每个输入首次响应重放既有失败，至多新增一次真实调用，单独统计，不算新的从零生成。
+
+### 界面美化回归
+检查中文和英文首页、生成表单，以及 390px 手机视口：标题、操作按钮和卡片不得重叠或横向溢出。切换语言后检查 AI 配置状态和当前通知同步切换；输入内容不自动翻译。打印页应保留白底。已通过最新版工作区浏览器回归，并人工检查上述首页与生成区截图。

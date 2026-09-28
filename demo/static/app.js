@@ -7,8 +7,8 @@ import {autoCorners,readSheet,loadImage} from './scanner.js';
 const $=s=>document.querySelector(s);
 let data=null,studentId=localStorage.getItem('paper-student')||'',pkg=null,rows=[],traceSource='manual',skippedBatches=[];
 let scanImage=null,corners=[],scanIssues=[],scanSource='scan',scanRead=false,scanOriginal=null;
-let toastTimer;
-function toast(message,error=false){clearTimeout(toastTimer);$('#notice').textContent=error?trError(message):tr(message);$('#notice').className=error?'error':'';$('#notice').hidden=false;toastTimer=setTimeout(()=>$('#notice').hidden=true,error?14000:6500);}
+let toastTimer,activeNotice=null;
+function toast(message,error=false){activeNotice={message,error};clearTimeout(toastTimer);$('#notice').textContent=error?trError(message):tr(message);$('#notice').className=error?'error':'';$('#notice').hidden=false;toastTimer=setTimeout(()=>$('#notice').hidden=true,error?14000:6500);}
 async function api(path,body){const res=await fetch(path,body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json','X-PaperAI':'local-teacher'},body:JSON.stringify(body)});const result=await res.json();if(!res.ok)throw Error(result.error||'Request failed');return result;}
 function on(selector,event,fn){$(selector)?.addEventListener(event,async e=>{const button=e.currentTarget;try{if(button.tagName==='BUTTON')button.disabled=true;await fn(e);}catch(err){toast(err.message,true);}finally{if(button.tagName==='BUTTON')button.disabled=false;}});}
 function student(){return data?.students.find(s=>s.id===studentId);}
@@ -22,7 +22,7 @@ async function refresh(){
  $('#student-select').value=studentId;
  $('#mode-status').textContent=data.provider.configured?'Live AI configured':'AI not configured';
  $('#ai-connection-label').textContent=data.provider.configured?'AI configured: '+data.provider.model:'AI not configured';
- renderOverview();renderScanSelect();renderBatch();
+ renderOverview();renderScanSelect();renderBatch();renderShowcase();
 }
 function renderOverview(){
  const ps=selectedPackages();
@@ -121,7 +121,7 @@ refresh().catch(e=>toast('Cannot connect to the local app: '+e.message,true));
 
 function teachingConfig(){const f=new FormData($('#plan-form'));return {custom_topic:true,topic:f.get('topic'),background:f.get('background'),batch_size:Number(f.get('batch_size')),batch_count:Number(f.get('batch_count')),include_reference_bank:false,goal:f.get('goal'),offline_days:Number(f.get('offline_days')),max_pages:Number(f.get('max_pages')),language:f.get('language')};}
 
-on('#ui-language','change',e=>{setLocale(e.target.value);if(pkg){const unsaved=[...document.querySelectorAll('#draft-editor input,#draft-editor textarea')].map(x=>({id:x.id,note:x.dataset.note,value:x.value}));renderPackage();for(const x of unsaved){const el=x.id?document.getElementById(x.id):document.querySelector(`[data-note="${x.note}"]`);if(el)el.value=x.value;}renderRows();renderResults();}});
+on('#ui-language','change',e=>{setLocale(e.target.value);renderShowcase();if(activeNotice&&!$('#notice').hidden)$('#notice').textContent=activeNotice.error?trError(activeNotice.message):tr(activeNotice.message);if(pkg){const unsaved=[...document.querySelectorAll('#draft-editor input,#draft-editor textarea')].map(x=>({id:x.id,note:x.dataset.note,value:x.value}));renderPackage();for(const x of unsaved){const el=x.id?document.getElementById(x.id):document.querySelector(`[data-note="${x.note}"]`);if(el)el.value=x.value;}renderRows();renderResults();}});
 function renderBatch(){
  const selected=new Set([...document.querySelectorAll('[data-batch]:checked')].map(x=>x.value));
  const filter=$('#class-filter').value,query=$('#learner-search').value.toLowerCase();
@@ -155,3 +155,8 @@ on('#provider-select','change',e=>{const p=data.provider_presets[e.target.value]
 
 on('#summary-package-select','change',async e=>{if(e.target.value)await openPackage(e.target.value);});
 on('#home-summary','click',()=>document.querySelector('[data-tab=results]').click());
+
+function renderShowcase(){
+ const slots=data?.showcase_slots||[];
+ $('#showcase-slots').innerHTML=slots.map(slot=>`<article class="showcase-slot"><span class="showcase-icon" aria-hidden="true">${slot.id==='humanities'?'Aa':'∑'}</span><div><h3>${esc(slot.label?.[locale]||slot.label?.en||slot.id)}</h3><p>${esc(tr('Topic not selected'))}</p></div><span class="pill">${tr('Reserved')}</span></article>`).join('');
+}

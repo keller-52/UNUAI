@@ -17,7 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit, parse_qs
 
 from providers import PRESETS,validate_provider,build_request,response_content,parse_json_content
-from workbook import validate_workbook, compile_workbook, validate_summary, topic_state
+from workbook import validate_workbook, compile_workbook, validate_summary, topic_state, feedback_scope_issues
 
 from core import (BANK, VERSION, PROMPT_VERSION, ValidationError, require, text,
                   public_question, public_package, diagnostic_score, state_for,
@@ -120,6 +120,7 @@ class Store:
         return {"version": VERSION, "students": students, "packages": packages,
                 "diagnostic": [public_question(BANK[k]) for k in ("D01", "D02", "D03")],
                 "units": [{"id": u["id"], "version": u["version"], "title": u["title"], "languages": u["languages"]} for u in UNITS.values()],
+                "showcase_slots": json.loads((ROOT / "showcase" / "manifest.json").read_text(encoding="utf-8"))["slots"],
                 "provider_presets": PRESETS,
                 "provider": {**{k:v for k,v in PROVIDER.items() if k!="api_key"},
                              "configured": bool(PROVIDER["api_key"] and PROVIDER["model"])}}
@@ -137,9 +138,15 @@ def ai_plan(request_data, provider):
         system += f"\nSummarise existing evidence only; visible language {language}. Return situation and measures, not a new question packet."
     else:
         system += f"\nCurrent packet: exactly {count} questions; visible language {language}; batch_size {request_data.get('constraints',{}).get('batch_size',0)}." if custom else f"\nCurrent packet: exactly {count} questions; {count-1} coach notes; visible language {language}."
+    if custom and not summarising:
+        size=request_data["constraints"]["batch_size"]
+        groups=[{"group":i//size+1,"condition_question_ids":[f"Q{j}" for j in range(i+1,i+size+1)]} for i in range(0,count,size)]
+        system += "\nCONDITION SCOPE (destinations may reference other printed groups): " + json.dumps(groups)
     messages = [{"role": "system", "content": system},
                 {"role": "user", "content": json.dumps(request_data, ensure_ascii=False)}]
     attempts = []
+    feedback_base = None
+    repair_fields = []
     started = time.monotonic()
     for attempt in range(2):
         endpoint,headers,payload=build_request(provider,messages,16000 if custom else 6000)
@@ -161,15 +168,33 @@ def ai_plan(request_data, provider):
         try:
             require(bool(content.strip()), "AI returned empty JSON content (finish reason: " + str(finish) + ")")
             proposal = parse_json_content(content)
+            if feedback_base is not None:
+                require(isinstance(proposal,dict) and all(field in proposal for field in repair_fields),"Targeted repair must return requested fields: "+", ".join(repair_fields))
+                proposal = dict(feedback_base,**{field:proposal[field] for field in repair_fields})
             if summarising:validate_summary(proposal,request_data["student_state"])
             elif custom:
                 validate_workbook(proposal,request_data["student_state"],count,request_data["constraints"]["batch_size"])
                 catalog_ids={q["id"] for q in request_data.get("catalog",[])}
                 require(all(q.get("reference_id") in catalog_ids for q in proposal["questions"] if q["origin"]=="bank_adapted"),"Unknown reference bank ID")
             else:validate_proposal(proposal, request_data["student_state"], count)
+            if custom and not summarising:
+                scope_issues=feedback_scope_issues(proposal,request_data["constraints"]["batch_size"])
+                internal_names=[name for name in ("confirmed_evaluations","student_state","independent_correct","supported_correct","evidence_refs") if name in proposal["learning_summary"]]
+                style_issues=["Rewrite learning_summary without internal field names: "+", ".join(internal_names)] if internal_names else []
+                issues=scope_issues+style_issues
+                if issues and attempt==0:
+                    # The questions/lesson are already valid. Repair only the erroneous feedback,
+                    # rather than asking the model to regenerate (and possibly damage) the packet.
+                    feedback_base=copy.deepcopy(proposal)
+                    repair_fields=(["batch_feedback"] if scope_issues else [])+(["learning_summary"] if style_issues else [])
+                    attempts.append({"content":content,"validation":"targeted_content: "+"; ".join(issues),"usage":usage,"finish_reason":finish,"repair_mode":"feedback_only" if repair_fields==["batch_feedback"] else "fields_only"})
+                    messages=[{"role":"system","content":system+"\nREPAIR RESPONSE OVERRIDE: return a JSON object containing ONLY these complete fields: "+", ".join(repair_fields)+". The valid questions, lesson and other fields will be preserved by the application. Correct the identified issues; keep feedback destinations unless invalid. For summary use short situation/measures labels with plain teacher-facing text."},
+                              {"role":"user","content":json.dumps({"packet":proposal,"issues":issues,"batch_size":request_data["constraints"]["batch_size"]},ensure_ascii=False)}]
+                    continue
+                require(not issues,"; ".join(issues))
             attempts.append({"content": content, "validation": "passed", "usage": usage, "finish_reason": finish})
             return proposal, {"provider": provider["base_url"], "model": body.get("model", provider["model"]),
-                              "prompt_version": "paper-summary-2" if request_data.get("operation")=="summary" else "paper-workbook-4" if request_data.get("constraints",{}).get("custom_topic") else PROMPT_VERSION, "system_prompt": system,
+                              "prompt_version": "paper-summary-2" if request_data.get("operation")=="summary" else "paper-workbook-5" if request_data.get("constraints",{}).get("custom_topic") else PROMPT_VERSION, "system_prompt": system,
                               "attempts": attempts, "elapsed_seconds": round(time.monotonic()-started, 2)}
         except (json.JSONDecodeError, ValidationError) as exc:
             attempts.append({"content": content, "validation": str(exc), "usage": usage, "finish_reason": finish})

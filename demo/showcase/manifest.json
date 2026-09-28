@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "slots": [
+    {"id": "humanities", "label": {"zh": "人文展示题库", "en": "Humanities showcase"}, "status": "reserved", "topic": null, "background": null, "reference_questions": []},
+    {"id": "science", "label": {"zh": "理科展示题库", "en": "Science showcase"}, "status": "reserved", "topic": null, "background": null, "reference_questions": []}
+  ]
+}

@@ -22,3 +22,9 @@ html[lang="zh-CN"] body{font-family:"Microsoft YaHei","Noto Sans CJK SC",sans-se
 .teacher-item .rich-text{font-size:12px;line-height:1.65}.teacher-item{break-inside:avoid;padding:10px 0}
 .lesson-paragraph{text-indent:2em;white-space:normal!important}
 .print-page h1{font-size:25px;line-height:1.3}
+
+/* Keep printable pages white and OMR geometry untouched. */
+.print-page:not(.record-page) h1{font-family:Georgia,"Noto Serif CJK SC","Songti SC",serif;font-weight:500;line-height:1.35}
+.print-page:not(.record-page) .print-head{border-bottom:1.5px solid #839983}
+.prose-table{font-size:11pt;line-height:1.6}.prose-table th{background:#f2f5ee;font-weight:600}.prose-table td,.prose-table th{padding:7px 8px;vertical-align:top;border-color:#b9c3b6}
+.print-options p{border-radius:3px}.hint-item,.teacher-item{border-bottom-color:#c8d1c5}

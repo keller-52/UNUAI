@@ -26,6 +26,7 @@ Object.assign(terms,{"Configure AI": "配置 AI", "Custom topics require live AI
 export function tr(value){if(locale!=='zh')return value;let out=value.replace(/Solve ([^.]*)\./g,'解方程：$1。').replace(/Another answer \/ not sure/g,'其他答案 / 不确定');for(const [en,zh] of Object.entries(terms).sort((a,b)=>b[0].length-a[0].length))out=out.split(en).join(zh);return out;}
 Object.assign(terms,{'Tencent / Hunyuan':'腾讯 / 混元','Alibaba / Qwen':'阿里云 / 通义千问','Volcengine / Doubao':'火山引擎 / 豆包','Moonshot / Kimi':'月之暗面 / Kimi','Zhipu / GLM':'智谱 / GLM','Baidu / ERNIE':'百度 / 文心','DashScope native':'DashScope 原生协议','AI authored question':'AI 自主出题','Reference bank question':'参考题库改编','Configure AI':'配置 AI','AI connection':'AI 连接','Read marked circles →':'识别填涂 →','Linear equations':'一元一次方程','Teacher review required':'待教师审核','PAPER AI — Teacher Studio':'PAPER AI — 教师工作台'});
 Object.assign(terms,{"Generate materials": "生成题目内容", "Scan & upload": "扫描上传", "Learning summary": "学习总结", "Learning rounds": "学习轮次", "Batch tools & backup": "批量工具与备份", "Question preview": "题目预览", "Scanner test tools": "扫描测试工具", "Configure AI, then enter a topic and teaching background.": "先配置 AI，再输入主题与教学背景。", "What should the learner be able to do?": "希望学生学会什么？", "01 / GENERATE MATERIALS": "01 / 生成题目内容", "02 / LEARNING SUMMARY": "02 / 学习总结", "03 / SCAN & UPLOAD": "03 / 扫描上传", "Upload every record page, read the marks, then check and confirm the answers.": "逐页上传记录纸，识别填涂后校对并确认答案。", "Leave unknown answers blank. Confirm unassigned groups below.": "未知答案留空，在下方确认未分配的题组。", "Select learning round": "选择学习轮次", "How paper learning works": "如何用纸张持续学习", "AI explains the topic and prepares all questions, hints and feedback before printing. Learners finish a group, check answers and follow the printed next step. Scan the records at the end to plan the next round.": "打印前，AI 完成知识讲解、出题和反馈设计。学生整组作答后核对答案，按纸上指引继续；最后扫描记录，用于规划下一轮。", "View learning summary": "查看学习总结", "5–10 questions / group": "每组 5–10 题", "Practise → Check → Continue": "练习 → 核对 → 继续", "Measures": "措施"});
+Object.assign(terms,{"Showcase question banks": "展示预制题库", "Two reserved spaces. Topics and questions will be selected later; use your own teaching brief below.": "预留一文一理两个位置，知识点与题目稍后确定；目前请在下方填写自定义教学内容。", "Topic not selected": "知识点待选", "Reserved": "预留位置"});
 const saved=new WeakMap(),attributes=new WeakMap();
 function apply(){
  document.documentElement.lang=locale==='zh'?'zh-CN':'en';
@@ -39,7 +40,7 @@ function apply(){
 
  const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
  for(let node;node=walker.nextNode();){
-  if(node.parentElement.closest('script,style,pre,textarea,#teacher-review,#plan-path,#plan-reason,#learning-summary,.user-content,.rich-text'))continue;
+  if(node.parentElement.closest('script,style,pre,textarea,#notice,#teacher-review,#plan-path,#plan-reason,#learning-summary,.user-content,.rich-text,.showcase-slot'))continue;
   const old=saved.get(node);const original=old&&node.nodeValue===old.translated?old.original:node.nodeValue;
   const translated=tr(original);saved.set(node,{original,translated});if(node.nodeValue!==translated)node.nodeValue=translated;
  }
