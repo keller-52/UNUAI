@@ -253,7 +253,7 @@ class AIAdapterTests(unittest.TestCase):
     def setUp(self):
         self.state=state_for(profile(),[])
         self.request={"student_state":self.state}
-        self.provider={"base_url":"https://example.invalid/v1","model":"mock-model","api_key":"test-only-key"}
+        self.provider={"base_url":"https://example.invalid/v1","model":"mock-model","api_key":"test-only-key","json_mode":"on"}
 
     def response(self,content):
         return io.BytesIO(json.dumps({"model":"mock-model","choices":[{"message":{"content":content}}],"usage":{"total_tokens":100}}).encode())
@@ -276,7 +276,7 @@ class AIAdapterTests(unittest.TestCase):
 
     def test_two_invalid_responses_fail_without_fallback(self):
         with patch('urllib.request.urlopen',side_effect=[self.response('{}'),self.response('{}')]):
-            with self.assertRaisesRegex(ValidationError,'failed validation twice'):
+            with self.assertRaisesRegex(ValidationError,'after two attempts'):
                 ai_plan(self.request,self.provider)
 
     def test_http_failure_is_explicit(self):

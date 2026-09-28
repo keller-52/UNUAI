@@ -1,4 +1,4 @@
-> **版本提示**：本页仅保留 0.2 固定版本检测流程。当前 0.4 请使用 [人工操作指南](manual_operation_guide.md)；测试矩阵与通过条件见 [本地 AI 测试与验收要求](local_ai_test_guide.md)。本页的三题、单页记录和旧跳转说明不适用于 0.4。
+> 本页保留 0.2 历史操作。当前请用 [0.5 人工操作指南](manual_operation_guide.md)，测试标准见 [本地 AI 验收](local_ai_test_guide.md)。旧三题、单页、固定跳转流程不适用于新版。
 
 # PAPER AI 人工实物检测指南
 

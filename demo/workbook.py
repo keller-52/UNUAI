@@ -33,34 +33,34 @@ def validate_workbook(p,state,count,batch_size=6):
         if q['origin']=='bank_adapted':text(q.get('reference_id'),'Reference ID',80)
     batches=p.get('batch_feedback')
     require(isinstance(batches,list) and len(batches)==count//batch_size,'One feedback block per batch required')
-    reachable={1}
     for i,batch in enumerate(batches):
         number=i+1
         require(isinstance(batch,dict) and batch.get('batch')==number,'Invalid feedback batch')
-        text(batch.get('title'),'Batch title',100)
-        text(batch.get('focus'),'Batch focus',300)
-        rules=batch.get('rules');require(isinstance(rules,list) and 1<=len(rules)<=batch_size+4,'Invalid feedback rules')
-        coverage=[];fallback_started=False
+        text(batch.get('title'),'Batch title',160)
+        text(batch.get('focus'),'Batch focus',600)
+        guidance=batch.get('guidance')
+        if guidance is not None:
+            text(guidance,'Offline guidance',6000)
+            # No imposed teaching policy. Check explicit Q references only.
+            import re
+            refs=re.findall(r'(?<![A-Za-z0-9])Q(\d+)(?![0-9])',guidance)
+            require(all(1<=int(q)<=count for q in refs),'Guidance refers to a question outside this packet')
+            groups=re.findall(r'(?:题组|\bgroup|\bbatch)\s*(\d+)',guidance,re.I)
+            require(all(1<=int(g)<=len(batches) for g in groups),'Guidance refers to a group outside this packet')
+        rules=batch.get('rules',[])
+        require(isinstance(rules,list),'Invalid feedback rules')
+        require(bool(guidance) or bool(rules),'Provide offline guidance for each batch')
         for rule in rules:
             require(isinstance(rule,dict),'Invalid feedback rule')
-            low,high=rule.get('min_correct'),rule.get('max_correct')
+            low,high=rule.get('min_correct',0),rule.get('max_correct',batch_size)
             require(type(low) is int and type(high) is int and 0<=low<=high<=batch_size,'Invalid score range')
-            require(rule.get('action') in ('review_then_continue','continue'),'Invalid feedback action')
-            text(rule.get('feedback'),'Feedback',900)
+            rule.setdefault('min_correct',low);rule.setdefault('max_correct',high)
+            text(rule.get('feedback'),'Feedback',3000)
             target=rule.get('target_batch')
-            require(target=='END' or type(target) is int and number<target<=len(batches),'Target must be a later existing batch or END')
-            if number in reachable and target!='END':reachable.add(target)
+            require(target=='END' or type(target) is int and 1<=target<=len(batches),'Target must be an existing batch or END')
             wrong=rule.get('wrong_any',[])
-            require(isinstance(wrong,list) and len(set(wrong))==len(wrong),'Invalid wrong-answer condition')
-            valid_ids={f'Q{j}' for j in range(i*batch_size+1,(i+1)*batch_size+1)}
-            require(all(isinstance(q,str) and q in valid_ids for q in wrong),'Wrong-answer condition must refer to this batch')
-            if wrong:
-                require(not fallback_started,'Targeted conditions must precede score fallback rules')
-            else:
-                fallback_started=True;coverage.extend(range(low,high+1))
-        require(sorted(coverage)==list(range(batch_size+1)),'Fallback ranges must cover all scores exactly once')
-    require(reachable==set(range(1,len(batches)+1)),'Every printed batch must be reachable')
-    require(len({r['target_batch'] for r in batches[0]['rules']})>=2,'First batch needs at least two different destinations')
+            require(isinstance(wrong,list) and all(isinstance(q,str) and q in {f'Q{j}' for j in range(1,count+1)} for q in wrong),'Unknown question in rule')
+        # Ordering, score coverage, difficulty, revisits and destinations are AI/teacher choices.
     return p
 
 
@@ -73,7 +73,7 @@ def compile_workbook(p,config):
     nodes.append({'id':'END','type':'finish','text':'Return the record sheets.'})
     return {'layout':'batch-v1','title':p['title'],'unit_id':config['unit_id'],'language':config['language'],
             'topic_id':config['topic_id'],'entry_node':'Q1','lesson':copy.deepcopy(p['lesson']),'nodes':nodes,
-            'routing_version':'offline-batch-1','batch_size':config['batch_size'],'batch_feedback':copy.deepcopy(p['batch_feedback']),
+            'routing_version':'free-guidance-1' if any(b.get('guidance') for b in p['batch_feedback']) else 'offline-batch-1','batch_size':config['batch_size'],'batch_feedback':copy.deepcopy(p['batch_feedback']),
             'batches':[{k:b[k] for k in ('batch','title','focus')} for b in p['batch_feedback']],
             'verification':'structure_only_teacher_review_required'}
 
@@ -115,27 +115,37 @@ def evaluate_workbook(package,trace):
     # Blank rows are not automatically errors: a paper branch can skip a whole group.
     by_id={r['task_id']:r for r in results};batch_path=[];current=1;route_complete=False
     size=package['plan']['batch_size'];feedback=package['plan']['batch_feedback']
-    while current!='END':
+    free=package['plan'].get('routing_version')=='free-guidance-1'
+    while not free and current!='END' and current not in batch_path:
         batch_path.append(current)
         group=[by_id[f'Q{i}'] for i in range((current-1)*size+1,current*size+1)]
         if any(r['first_correct'] is None for r in group):break
         score=sum(r['first_correct'] for r in group)
         wrong={r['task_id'] for r in group if not r['first_correct']}
-        rule=next(r for r in feedback[current-1]['rules'] if r['min_correct']<=score<=r['max_correct'] and (not r.get('wrong_any') or wrong.intersection(r['wrong_any'])))
+        rule=next((r for r in feedback[current-1].get('rules',[]) if r['min_correct']<=score<=r['max_correct'] and (not r.get('wrong_any') or wrong.intersection(r['wrong_any']))),None)
+        if rule is None:break
         current=rule['target_batch']
     if current=='END':route_complete=True
+    skipped=trace.get('skipped_batches',[])
+    require(isinstance(skipped,list) and all(type(b) is int and 1<=b<=len(feedback) for b in skipped),'Invalid skipped groups')
+    require(not any(r['first_answer'] or lookup[r['task_id']].get('retry_answer') is not None or r['hint_level'] is not None for i,r in enumerate(results) if i//size+1 in skipped),'A skipped group contains recorded answers or hints')
     warnings=[]
     for index,r in enumerate(results):
-        if index//size+1 not in batch_path:
+        if index//size+1 in skipped:r['completion']='not_assigned_confirmed'
+        elif free:
+            if not r['first_answer']:r['completion']='unanswered_or_skipped'
+        elif index//size+1 not in batch_path:
             if r['first_answer']:warnings.append(r['task_id']+': answered outside the reconstructable prescribed route')
             elif route_complete:r['completion']='not_assigned_by_route'
     eligible=[r for r in results if r['first_correct'] is not None];independent=[r for r in eligible if r['hint_level']==0]
-    return {'package_id':package['id'],'topic_id':package['config']['topic_id'],'source':trace['source'],
+    evaluation={'package_id':package['id'],'topic_id':package['config']['topic_id'],'source':trace['source'],
             'path':[r['task_id'] for r in results if r['first_answer']], 'results':results,'warnings':warnings,'prescribed_batch_path':batch_path,'route_complete':route_complete,
             'first_correct':sum(r['first_correct'] for r in eligible),'first_total':len(eligible),
             'independent_correct':sum(r['first_correct'] for r in independent),'independent_total':len(independent),
-            'note':'Descriptive only. Topic answers require teacher review; prescribed route is reconstructed from first answers, not observed visit order.'}
+            'note':'Natural-language routing is teacher reviewed. Blank answers are unknown or skipped, never automatically incorrect.' if free else 'Descriptive only. Topic answers require teacher review; prescribed route is reconstructed from first answers, not observed visit order.'}
 
+    if free or skipped:evaluation.update(routing_mode='teacher_review' if free else 'structured',skipped_batches=skipped)
+    return evaluation
 
 def validate_summary(p,state):
     require(isinstance(p,dict),'Summary must be JSON')

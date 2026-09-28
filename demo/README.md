@@ -1,3 +1,5 @@
+> **0.5 当前入口**：[人工操作指南](../docs/manual_operation_guide.md)、[本地 AI 验收](../docs/local_ai_test_guide.md)、[平台范围与验证状态](../docs/product_05_status.md)。下文旧版本描述请以新版入口为准。直接导出 PDF 使用本机 Chrome/Edge；无需安装 AI SDK。
+
 > **0.4 当前入口**：[人工操作指南](../docs/manual_operation_guide.md) · [本地 AI 测试与验收要求](../docs/local_ai_test_guide.md) · [当前实现状态](../docs/product_04_status.md)。自定义主题默认预印 3 组 × 10 题，学生完成整组后核对首次答案并按规则进入下一组；主流平台原生 API 与正式展示知识点仍延期。下文旧单元的 2–4 题说明仅作为兼容 / 历史流程参考。
 
 > 0.3 更新：真实 AI 可自主出题、引用参考题库或混合使用；详见 [自主出题协议与实际提示词](../docs/ai_question_authoring.md)。0.2 已通过的软件验收属于历史基线，新题版打印需再次验收。

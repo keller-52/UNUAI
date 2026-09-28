@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit, parse_qs
 
+from providers import PRESETS,validate_provider,build_request,response_content,parse_json_content
 from workbook import validate_workbook, compile_workbook, validate_summary, topic_state
 
 from core import (BANK, VERSION, PROMPT_VERSION, ValidationError, require, text,
@@ -37,7 +38,7 @@ def load_provider(path=None):
             raise ValidationError("Cannot read provider.json; check JSON syntax") from None
         require(isinstance(settings, dict), "Provider config must be an object")
     provider = {}
-    defaults = {"base_url": "https://api.deepseek.com", "model": "deepseek-flash", "api_key": ""}
+    defaults = {"base_url": "https://api.deepseek.com", "model": "deepseek-flash", "api_key": "", "provider":"deepseek", "protocol":"chat", "json_mode":"auto"}
     for key, default in defaults.items():
         value = os.environ.get("PAPER_AI_" + key.upper(), settings.get(key, default))
         require(isinstance(value, str), "Provider fields must be strings")
@@ -45,7 +46,7 @@ def load_provider(path=None):
     parsed = urlsplit(provider["base_url"])
     require(parsed.scheme == "https" and parsed.hostname and not parsed.username and not parsed.password
             and not parsed.query and not parsed.fragment, "Use an HTTPS provider URL without credentials")
-    return provider
+    return validate_provider(provider)
 
 
 PROVIDER = load_provider()
@@ -119,7 +120,8 @@ class Store:
         return {"version": VERSION, "students": students, "packages": packages,
                 "diagnostic": [public_question(BANK[k]) for k in ("D01", "D02", "D03")],
                 "units": [{"id": u["id"], "version": u["version"], "title": u["title"], "languages": u["languages"]} for u in UNITS.values()],
-                "provider": {"base_url": PROVIDER["base_url"], "model": PROVIDER["model"],
+                "provider_presets": PRESETS,
+                "provider": {**{k:v for k,v in PROVIDER.items() if k!="api_key"},
                              "configured": bool(PROVIDER["api_key"] and PROVIDER["model"])}}
 
 
@@ -137,22 +139,14 @@ def ai_plan(request_data, provider):
     attempts = []
     started = time.monotonic()
     for attempt in range(2):
-        payload = {"model": provider["model"], "messages": messages,
-                   "response_format": {"type": "json_object"}, "max_tokens": 16000 if custom else 6000}
-        # DeepSeek enables thinking by default. Reserve the bounded output budget
-        # for the full question-authoring JSON; do not send vendor fields elsewhere.
-        if urlsplit(provider["base_url"]).hostname == "api.deepseek.com":
-            payload["thinking"] = {"type": "disabled"}
-        req = urllib.request.Request(provider["base_url"].rstrip("/") + "/chat/completions",
-                                     data=json.dumps(payload).encode(),
-                                     headers={"Authorization": "Bearer " + provider["api_key"],
-                                              "Content-Type": "application/json"})
+        endpoint,headers,payload=build_request(provider,messages,16000 if custom else 6000)
+        req=urllib.request.Request(endpoint,data=json.dumps(payload).encode(),headers=headers)
         try:
             with urllib.request.urlopen(req, timeout=120) as response:
                 raw_bytes = response.read(600_001)
             require(len(raw_bytes) <= 600_000, "AI response exceeded size limit")
             body = json.loads(raw_bytes)
-            content = body["choices"][0]["message"]["content"]
+            content,finish,usage=response_content(body,provider)
             require(isinstance(content, str) and len(content) <= 180000, "Missing or excessive model content")
         except urllib.error.HTTPError as exc:
             exc.close()
@@ -162,23 +156,23 @@ def ai_plan(request_data, provider):
         except (KeyError, IndexError, TypeError, json.JSONDecodeError):
             raise ValidationError("AI provider returned an unexpected response envelope") from None
         try:
-            require(bool(content.strip()), "AI returned empty JSON content (finish reason: " + str(body['choices'][0].get('finish_reason', 'unknown')) + ")")
-            proposal = json.loads(content)
+            require(bool(content.strip()), "AI returned empty JSON content (finish reason: " + str(finish) + ")")
+            proposal = parse_json_content(content)
             if summarising:validate_summary(proposal,request_data["student_state"])
             elif custom:
                 validate_workbook(proposal,request_data["student_state"],count,request_data["constraints"]["batch_size"])
                 catalog_ids={q["id"] for q in request_data.get("catalog",[])}
                 require(all(q.get("reference_id") in catalog_ids for q in proposal["questions"] if q["origin"]=="bank_adapted"),"Unknown reference bank ID")
             else:validate_proposal(proposal, request_data["student_state"], count)
-            attempts.append({"content": content, "validation": "passed", "usage": body.get("usage"), "finish_reason": body['choices'][0].get('finish_reason')})
+            attempts.append({"content": content, "validation": "passed", "usage": usage, "finish_reason": finish})
             return proposal, {"provider": provider["base_url"], "model": body.get("model", provider["model"]),
-                              "prompt_version": "paper-summary-1" if request_data.get("operation")=="summary" else "paper-workbook-2" if request_data.get("constraints",{}).get("custom_topic") else PROMPT_VERSION, "system_prompt": system,
+                              "prompt_version": "paper-summary-1" if request_data.get("operation")=="summary" else "paper-workbook-3" if request_data.get("constraints",{}).get("custom_topic") else PROMPT_VERSION, "system_prompt": system,
                               "attempts": attempts, "elapsed_seconds": round(time.monotonic()-started, 2)}
         except (json.JSONDecodeError, ValidationError) as exc:
-            attempts.append({"content": content, "validation": str(exc), "usage": body.get('usage'), "finish_reason": body['choices'][0].get('finish_reason')})
+            attempts.append({"content": content, "validation": str(exc), "usage": usage, "finish_reason": finish})
             messages += [{"role": "assistant", "content": content},
                          {"role": "user", "content": "Repair your JSON: " + str(exc)}]
-    raise ValidationError("AI proposal failed validation twice. No package was issued. " + attempts[-1]["validation"])
+    raise ValidationError("AI output could not be used after two attempts. Reduce the packet size or review the topic material. Details: " + attempts[-1]["validation"])
 
 
 def generate(store, student_id, mode, config):
@@ -347,6 +341,24 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(size))
             require(isinstance(body, dict), "Request must be an object")
             path = urlsplit(self.path).path
+            if path == "/api/pdf-ready":
+                from pdf_export import acknowledge
+                acknowledge(body.get("job"),body.get("ready") is True,body.get("error",""))
+                return self.send_json({"ok":True})
+            if path == "/api/pdf":
+                from pdf_export import export_pdf
+                ids=body.get("ids",[]);view=body.get("view","booklet");token=body.get("token","")
+                require(isinstance(ids,list) and 1<=len(ids)<=50 and all(isinstance(i,str) for i in ids),"Invalid print selection")
+                require(view in ("booklet","support","record","teacher"),"Unknown print view")
+                if token:require(len(ids)==1 and view in ("booklet","record"),"Invalid student PDF selection")
+                for key in ids:
+                    package=self.store.get("packages",key)
+                    require(package["status"]!="draft","Approve every package before printing.")
+                    if token:require(secrets.compare_digest(token,package["student_token"]),"Invalid student link")
+                data=export_pdf(self.server.server_port,ids,view,token)
+                self.send_response(200);self.send_header("Content-Type","application/pdf")
+                self.send_header("Content-Disposition",'attachment; filename="PAPER-AI-'+view+'.pdf"')
+                self.send_header("Content-Length",str(len(data)));self.end_headers();self.wfile.write(data);return
             if path == "/api/restore":
                 from persistence import restore
                 return self.send_json(restore(self.store, body))
@@ -361,7 +373,9 @@ class Handler(BaseHTTPRequestHandler):
                 with LOCK:
                     require(base == PROVIDER["base_url"].rstrip("/") or key.strip(),
                             "Enter a new key when changing provider URL")
-                    PROVIDER.update(base_url=base, model=model)
+                    updated=dict(PROVIDER,base_url=base,model=model,provider=body.get("provider","custom"),protocol=body.get("protocol","chat"),json_mode=body.get("json_mode","auto"))
+                    validate_provider(updated)
+                    PROVIDER.update(updated)
                     if key:
                         PROVIDER["api_key"] = key.strip()
                 return self.send_json({"configured": bool(PROVIDER["api_key"]), "note": "Key is held in server memory only."})

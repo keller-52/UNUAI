@@ -17,9 +17,14 @@ export function decodeBits(bits){
 export function blankRows(p){return p.plan.nodes.map(n=>({task_id:n.id,order:null,first_answer:null,hint_level:null,retry_answer:null}));}
 export function sampleRows(p,kind='support'){
  const rows=blankRows(p),nodes=Object.fromEntries(p.plan.nodes.map(n=>[n.id,n]));
+ if(p.plan.layout==='batch-v1'&&p.plan.routing_version==='free-guidance-1'){
+  for(const r of rows){if(nodes[r.task_id].type==='choice_question'){r.first_answer=nodes[r.task_id].correct_option;r.hint_level=0;}}return rows;
+ }
  if(p.plan.layout==='batch-v1'){
   let batch=1;const size=p.plan.batch_size;
-  while(batch!=='END'){
+  const seen=new Set();
+  while(batch!=='END'&&!seen.has(batch)){
+   seen.add(batch);
    const wrong=[];let correct=0;
    for(let i=(batch-1)*size+1;i<=batch*size;i++){
     const n=nodes['Q'+i],r=rows.find(x=>x.task_id===n.id),fail=kind==='support'&&batch===1&&i%2===0;
@@ -27,7 +32,7 @@ export function sampleRows(p,kind='support'){
     if(fail)wrong.push(n.id);else correct++;
    }
    const rule=p.plan.batch_feedback[batch-1].rules.find(r=>r.min_correct<=correct&&correct<=r.max_correct&&(!r.wrong_any?.length||r.wrong_any.some(id=>wrong.includes(id))));
-   batch=rule.target_batch;
+   if(!rule)break;batch=rule.target_batch;
   }
   return rows;
  }
@@ -160,6 +165,12 @@ export function paginate(container,packages,view){
    bookletPositions[p.id]=positions;
   }finally{reference.remove();}
  }
+ for(const item of container.querySelectorAll('.teacher-item'))item.replaceWith(...item.childNodes);
+ for(const rich of container.querySelectorAll('.rich-text')){
+  for(const list of rich.querySelectorAll(':scope > ul,:scope > ol')){let i=1;for(const li of [...list.children]){const line=document.createElement('p');line.innerHTML=(list.tagName==='OL'?i+++'. ':'• ')+li.innerHTML;list.before(line);}list.remove();}
+  for(const child of rich.children)child.classList.add('rich-block');
+  rich.replaceWith(...rich.childNodes);
+ }
  const originals=[...container.querySelectorAll('.print-page')];
  for(const page of originals){
   const group=page.dataset.package;
@@ -172,6 +183,8 @@ export function paginate(container,packages,view){
    if(block.getBoundingClientRect().bottom<=current.querySelector('footer').getBoundingClientRect().top-8)continue;
    const next=document.createElement('section');next.className='print-page';next.dataset.package=group;
    if(header)next.append(header.cloneNode(true));next.append(footer.cloneNode(true));current.after(next);
+   const previous=block.previousElementSibling;
+   if(previous&&previous.matches('h2,h3,h4'))next.insertBefore(previous,next.querySelector('footer'));
    next.insertBefore(block,next.querySelector('footer'));current=next;
    if(block.getBoundingClientRect().bottom>current.querySelector('footer').getBoundingClientRect().top-8)
     throw Error('A content block exceeds one page. Revise the draft before printing.');

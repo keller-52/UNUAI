@@ -1,4 +1,7 @@
 {
+  "provider": "deepseek",
+  "protocol": "chat",
+  "json_mode": "auto",
   "base_url": "https://api.deepseek.com",
   "model": "deepseek-flash",
   "api_key": ""

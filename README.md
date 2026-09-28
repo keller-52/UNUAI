@@ -1,3 +1,5 @@
+> 当前版本 **0.5**：[修订进度](docs/product_05_status.md) · [人工操作指南](docs/manual_operation_guide.md) · [本地 AI 验收要求](docs/local_ai_test_guide.md)。新增自由分流指导、Markdown、直接 PDF 下载、面积扫描和多平台直连。
+
 # UNUAI
 
 本仓库用于准备 **2026 全球青少年人工智能未来创新竞赛（澳门中学生赛区）** 项目。

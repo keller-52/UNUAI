@@ -27,7 +27,9 @@ export function autoCorners(canvas){
  small.width=Math.round(canvas.width*scale);small.height=Math.round(canvas.height*scale);
  const ctx=small.getContext('2d',{willReadFrequently:true});ctx.drawImage(canvas,0,0,small.width,small.height);
  const {width:w,height:h}=small,im=ctx.getImageData(0,0,w,h).data,visited=new Uint8Array(w*h),candidates=[];
- const dark=i=>im[i*4]+im[i*4+1]+im[i*4+2]<300;
+ const levels=[];for(let i=0;i<w*h;i+=31)levels.push((im[i*4]+im[i*4+1]+im[i*4+2])/3);levels.sort((a,b)=>a-b);
+ const cutoff=Math.min(180,levels[Math.floor(levels.length*.85)]-50);
+ const dark=i=>(im[i*4]+im[i*4+1]+im[i*4+2])/3<cutoff;
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
   const start=y*w+x;
   if(visited[start]||!dark(start))continue;
@@ -46,6 +48,18 @@ export function autoCorners(canvas){
   return {x:c[0].x/scale,y:c[0].y/scale};
  });
 }
+// Compare the inner disk to its own surrounding paper, excluding the printed outline.
+export function markCoverage(data,w,h,map,x,y,contrast=180){
+ const rgb=(a,b)=>{const q=map(a,b),xx=Math.round(q.x),yy=Math.round(q.y);if(xx<0||yy<0||xx>=w||yy>=h)return [255,255,255];const i=(yy*w+xx)*4;return [data[i],data[i+1],data[i+2]];};
+ const ring=[];for(let k=0;k<32;k++){const a=k*Math.PI/16;ring.push(rgb(x+9*Math.cos(a),y+9*Math.sin(a)));}
+ const white=[0,1,2].map(c=>ring.map(p=>p[c]).sort((a,b)=>a-b)[24]);
+ const threshold=Math.max(35,Math.min(85,contrast*.3));let filled=0,total=0;
+ for(let dx=-4.8;dx<=4.8;dx+=.6)for(let dy=-4.8;dy<=4.8;dy+=.6)if(dx*dx+dy*dy<=4.8*4.8){
+  const pixel=rgb(x+dx,y+dy),delta=Math.sqrt(pixel.reduce((s,v,c)=>s+(v-white[c])**2,0)/3);
+  if(delta>=threshold)filled++;total++;
+ }
+ return filled/total;
+}
 export function readSheet(canvas,points,p){
  const map=homography(points),ctx=canvas.getContext('2d',{willReadFrequently:true});
  const im=ctx.getImageData(0,0,canvas.width,canvas.height).data;
@@ -55,7 +69,7 @@ export function readSheet(canvas,points,p){
  };
  const black=MARKERS.reduce((s,m)=>s+sample(m.x,m.y,4),0)/4;
  const white=sample(400,70,4);
- if(white-black<90)throw Error('Insufficient contrast or incorrect corners. Try a brighter, sharper photo.');
+ if(white-black<45)throw Error('Insufficient contrast or incorrect corners. Try a brighter, sharper photo.');
  const darkness=(x,y,r)=>(white-sample(x,y,r))/(white-black);
  let bits='';for(let i=0;i<32;i++){const d=darkness(86+i*19,148,2);bits+=d>.65?'1':d<.25?'0':'?';}
  const code=decodeBits(bits);
@@ -68,14 +82,15 @@ export function readSheet(canvas,points,p){
   for(const [key,xs] of Object.entries(COLS)){
    if(key==='order'&&p.plan.layout==='batch-v1')continue;
    if(key!=='order'&&n.type!=='choice_question')continue;
-   const values=xs.map(x=>darkness(x,rowY(i),2.6));
-   const chosen=values.map((v,j)=>v>.55?j:-1).filter(x=>x>=0),uncertain=values.some(v=>v>.22&&v<=.55);
-   if(chosen.length===1&&!uncertain){const j=chosen[0];row[key]=key==='order'?j+1:key==='hint_level'?j:String.fromCharCode(65+j);}
-   else if(chosen.length>1||uncertain)issues.push(`${n.id} / ${key}: ambiguous marks — review required`);
+   const values=xs.map(x=>markCoverage(im,canvas.width,canvas.height,map,x,rowY(i),white-black));
+   const chosen=values.map((v,j)=>v>.5?j:-1).filter(x=>x>=0);
+   if(chosen.length===1){const j=chosen[0];row[key]=key==='order'?j+1:key==='hint_level'?j:String.fromCharCode(65+j);}
+   else if(chosen.length>1||values.some(v=>v>.25))issues.push(`${n.id} / ${key}: ambiguous marks — review required`);
+
   }
   return row;
  });
- return {rows,issues,code,page:sheet?.page||1,method:'local-omr-v1',notice:'Review every row. This reads marks, not handwriting or reasoning.'};
+ return {rows,issues,code,page:sheet?.page||1,method:'local-omr-area-v2',notice:'Review every row. This reads marks, not handwriting or reasoning.'};
 }
 export async function loadImage(file){
  const url=URL.createObjectURL(file),img=new Image();
