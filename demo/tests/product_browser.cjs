@@ -70,7 +70,7 @@ fs.mkdirSync(output,{recursive:true});
   const exported=JSON.parse(fs.readFileSync(path.join(output,'synthetic-backup.json'),'utf8'));assert.ok(exported.trace_history.filter(x=>x.package_id===p.id).length>=2);assert.ok(!JSON.stringify(exported).includes('api_key'));
   const two=[];for(let i=0;i<2;i++){const r=await request('/api/students',{label:`Batch ${Date.now()} ${i}`,class_name:'Batch acceptance',synthetic:true});two.push(r.data.id);}
   await page.reload();await page.waitForSelector(`[data-batch][value="${two[0]}"]`);for(const id of two)await page.check(`[data-batch][value="${id}"]`);
-  await page.click('[data-tab="plan"]');await page.selectOption('#planning-mode','demo');await page.click('[data-tab="overview"]');await page.click('#batch-generate');await page.waitForFunction(()=>document.querySelector('#batch-status').textContent==='2 / 2');
+  await page.click('[data-tab="plan"]');await page.uncheck('#custom-topic');await page.selectOption('#planning-mode','demo');await page.click('[data-tab="overview"]');await page.click('#batch-generate');await page.waitForFunction(()=>document.querySelector('#batch-status').textContent==='2 / 2');
   const all=await get('/api/bootstrap');const batch=two.map(id=>all.packages.filter(p=>p.student_id===id).at(-1));
   for(const item of batch){await open(page,item.id,item.student_id);await approve();}
   await page.click('[data-tab="overview"]');for(const id of two)await page.check(`[data-batch][value="${id}"]`);
