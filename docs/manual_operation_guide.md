@@ -1,5 +1,7 @@
 # PAPER AI 0.5 人工操作指南
 
+> **文档分类：当前文档。** 当前实际人工操作以本文为准；完整分类见 [文档索引](README.md)。
+
 更新：2026-09-28。上一版人工实测已完成，本版针对反馈修改；新功能按本文复测。配套：[本地 AI 验收](local_ai_test_guide.md)、[改动与验证范围](product_05_status.md)、[实物记录模板](manual_physical_test_record.md)。
 
 ## 1. 下载、启动与配置
