@@ -16,7 +16,7 @@ fs.mkdirSync(output,{recursive:true});
   await page.click('#seed-button');await page.waitForFunction(()=>document.querySelector('#student-select').options.length>=2);
   await page.selectOption('#student-select','S-DEMO-A');
   await page.screenshot({path:output+'/overview.png',fullPage:true});
-  await page.uncheck('#custom-topic');await page.click('#start-button');await page.selectOption('#planning-mode','demo');await page.click('#generate-button');
+  await page.click('#start-button');await page.uncheck('#custom-topic');await page.selectOption('#planning-mode','demo');await page.click('#generate-button');
   await page.waitForSelector('#package-panel:not([hidden])');await page.check('#reviewed');await page.click('#approve-button');
   await page.waitForSelector('#print-controls:not([hidden])');
   const pkg=await page.evaluate(async()=>{const d=await(await fetch('/api/bootstrap')).json();const ps=d.packages.filter(x=>x.student_id==='S-DEMO-A');return(await fetch('/api/packages/'+ps.at(-1).id)).json();});
