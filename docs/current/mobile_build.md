@@ -30,7 +30,7 @@ gradle -p mobile/android assembleRelease
 
 ## iOS
 
-iOS 最低系统版本为 15.0。使用 macOS、完整 Xcode 和 XcodeGen：
+iOS 最低系统版本为 15.4。使用 macOS、完整 Xcode 和 XcodeGen：
 
 ```sh
 python -m pip install certifi==2025.8.3
