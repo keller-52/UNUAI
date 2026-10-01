@@ -1,0 +1,184 @@
+import {guidanceWarnings} from './workbook.js';
+import {markdown} from './richtext.js';
+import {locale,tr,trError,setLocale,startI18n} from './i18n.js';
+import {esc,blankRows} from './paper.js';
+import {autoCorners,readSheet,loadImage} from './scanner.js';
+import {openView,saveFile} from './mobile.js';
+
+const $=s=>document.querySelector(s);
+let data=null,studentId=localStorage.getItem('paper-student')||'',pkg=null,rows=[],traceSource='manual',skippedBatches=[];
+let scanImage=null,corners=[],scanIssues=[],scanSource='scan',scanRead=false,scanOriginal=null;
+let toastTimer,activeNotice=null;
+let pendingPackage=null;
+function toast(message,error=false){activeNotice={message,error};clearTimeout(toastTimer);$('#notice').textContent=error?trError(message):tr(message);$('#notice').className=error?'error':'';$('#notice').hidden=false;toastTimer=setTimeout(()=>$('#notice').hidden=true,error?14000:6500);}
+async function api(path,body){const res=await fetch(path,body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json','X-PaperAI':'local-teacher'},body:JSON.stringify(body)});const result=await res.json();if(!res.ok)throw Error(result.error||'Request failed');return result;}
+function on(selector,event,fn){$(selector)?.addEventListener(event,async e=>{const button=e.currentTarget;try{if(button.tagName==='BUTTON')button.disabled=true;await fn(e);}catch(err){toast(err.message,true);}finally{if(button.tagName==='BUTTON')button.disabled=false;}});}
+function student(){return data?.students.find(s=>s.id===studentId);}
+function selectedPackages(){return data?.packages.filter(p=>p.student_id===studentId)||[];}
+function show(tab){document.querySelectorAll('.view').forEach(e=>e.classList.toggle('active',e.id===tab));document.querySelectorAll('.nav').forEach(e=>e.classList.toggle('active',e.dataset.tab===tab));if(tab==='results')renderResults();}
+function download(name,content,type='application/json'){return saveFile(name,content,type);}
+async function refresh(){
+ data=await api('/api/bootstrap');if(!data.students.some(s=>s.id===studentId))studentId=data.students[0]?.id||'';
+ localStorage.setItem('paper-student',studentId);
+ $('#student-select').innerHTML=data.students.length?data.students.map(s=>`<option value="${esc(s.id)}">${esc(s.label)}</option>`).join(''):'<option value="">No learner yet</option>';
+ $('#student-select').value=studentId;
+ $('#mode-status').textContent=data.provider.configured?'Live AI configured':'AI not configured';
+ $('#ai-connection-label').textContent=data.provider.configured?'AI configured: '+data.provider.model:'AI not configured';
+ renderOverview();renderScanSelect();renderBatch();document.body.dataset.appReady='1';
+}
+function renderOverview(){
+ const ps=selectedPackages();
+ $('#round-list').innerHTML=ps.length?[...ps].reverse().map(p=>`<article class="round-card"><div class="round-number">${p.round}</div><div><h3>${esc(p.title)}</h3><small>${p.mode==='imported'?'Imported package':'AI learning package'} · ${esc(p.status)} · ${esc(p.id)}</small></div><button class="secondary" data-open="${esc(p.id)}">Open round ↗</button></article>`).join(''):'<div class="card empty">No paper packages yet. Start with a learner, then plan a round.</div>';
+ document.querySelectorAll('[data-open]').forEach(b=>b.onclick=async()=>{try{await openPackage(b.dataset.open);show('plan');$('#package-panel').scrollIntoView({block:'start'});}catch(e){toast(e.message,true);}});
+}
+function renderScanSelect(){const rounds=selectedPackages();$('#summary-package-select').innerHTML=rounds.length?rounds.map(p=>`<option value="${esc(p.id)}">${tr('Round')} ${p.round} · ${esc(p.title)}</option>`).join(''):`<option value="">${tr('Open a package first')}</option>`;if(pkg)$('#summary-package-select').value=pkg.id;const ps=selectedPackages().filter(p=>p.status!=='draft');$('#scan-package-select').innerHTML=ps.length?ps.map(p=>`<option value="${esc(p.id)}">Round ${p.round} · ${esc(p.id)}</option>`).join(''):'<option value="">Approve a package first</option>';if(pkg&&ps.some(x=>x.id===pkg.id))$('#scan-package-select').value=pkg.id;}
+async function openPackage(id){
+ pkg=await api('/api/packages/'+encodeURIComponent(id));rows=pkg.trace?.rows||blankRows(pkg);skippedBatches=pkg.trace?.skipped_batches||[];traceSource=pkg.trace?.source||'manual';scanImage=null;corners=[];scanIssues=[];scanRead=false;scanOriginal=pkg.trace?.scan_review?.original_rows||null;$('#scan-canvas').removeAttribute('data-loaded');$('#scan-issues').textContent='';$('#trace-confirmed').checked=false;
+ $('#record-page').innerHTML=(pkg.record_sheets?.length?pkg.record_sheets:[{code:pkg.sheet_code,page:1}]).map((x,i)=>`<option value="${i}">${x.page} · ${esc(x.code)}</option>`).join('');
+ renderPackage();renderRows();renderResults();renderScanSelect();renderOverview();restoreDraft();
+}
+function renderPackage(){
+ $('#package-panel').hidden=!pkg;$('#guidance-review-warning')?.remove();if(!pkg)return;
+ $('#package-title').textContent=`Round ${pkg.round} / ${pkg.plan.title}`;$('#package-status').textContent=`${pkg.mode==='imported'?'IMPORTED PACKAGE':'AI LEARNING PACKAGE'} · ${pkg.status.toUpperCase()}`;
+ $('#plan-reason').innerHTML=`<span class="eyebrow">${tr('WHY THIS PLAN')}</span><p>${esc(pkg.proposal.reason)}</p><p class="muted">${tr('Evidence:')} ${esc(pkg.proposal.evidence_refs.join(', ')||tr('No previous observations.'))}<br>${pkg.mode==='imported'?tr('Imported content. Review before printing.'):`${tr('Model:')} ${esc(pkg.audit.model||'—')} · ${pkg.audit.attempts?.length||0} ${tr('attempt(s)')} · ${pkg.audit.elapsed_seconds??0}s`}</p>`;
+ 
+ $('#plan-path').innerHTML=pkg.plan.nodes.filter(n=>n.type==='choice_question').map(n=>`<article class="path-card"><small>${n.id} · ${pkg.config.custom_topic?tr('Teacher review required'):esc(n.level.toUpperCase())}</small><p>${esc(n.prompt)}</p><em>${pkg.config.custom_topic?tr('Follow the check booklet after completing the group.'):esc(n.routes.map(r=>r.answer+' → '+r.next).join(' · '))}</em></article>`).join('');
+ $('#teacher-review').innerHTML=pkg.plan.nodes.map(n=>n.type==='choice_question'?`<h3>${n.id}: ${esc(n.prompt)}</h3><p>${tr('Teacher review required')}</p>${n.design_reason?`<p>${esc(n.design_reason)}</p>`:''}<p>${n.options.map(o=>`${o.id}: ${esc(o.text)}`).join(' · ')}</p><p><b>${tr('Correct option:')} ${esc(n.correct_option)}</b></p>${markdown(n.explanation)}`:n.type==='explanation'?`<h3>${n.id}: Support branch</h3><p>${esc(n.text)}</p><p>${esc(n.coach_note)}</p>`:'').join('');
+ if(pkg.config.custom_topic){
+  const warnings=guidanceWarnings(pkg.plan);$('#teacher-review').insertAdjacentHTML('afterbegin',pkg.plan.lesson.map(section=>`<h3>${esc(section.heading)}</h3>${markdown(section.text)}${markdown(section.example)}`).join(''));
+  $('#guidance-review-warning')?.remove();
+  if(warnings.length)$('#plan-reason').insertAdjacentHTML('afterend',`<div id="guidance-review-warning" class="warning">${esc(locale==='zh'?'请修改分流条件：以下条件引用了本组完成时尚未作答的题。':'Revise routing conditions: these conditions refer to questions not yet completed.')} ${warnings.map(w=>esc(tr('Group')+' '+w.batch+': '+w.questions.join(', '))).join('; ')}</div>`);
+ }
+ if(pkg.config.custom_topic)$('#teacher-review').insertAdjacentHTML('beforeend',pkg.plan.batch_feedback.map(b=>`<h3>${tr('Group')} ${b.batch}: ${esc(b.title)}</h3>${b.guidance?markdown(b.guidance):''}`).join(''));
+ $('#learning-summary').textContent=tr(pkg.ai_summary?'Latest AI summary\n':'Summary at generation\n')+(pkg.ai_summary?.content.summary||pkg.learning_summary||(locale==='zh'?'暂无 AI 总结，可根据当前记录生成。':'No AI summary yet.'));
+ document.querySelector('[data-print="support"]').hidden=pkg.plan.layout!=='batch-v1';
+ $('#plan-json').textContent=JSON.stringify({proposal:pkg.proposal,plan:pkg.plan,audit:pkg.audit,request:pkg.request},null,2);
+ $('#discard-draft').hidden=pkg.status!=='draft';
+ $('#draft-editor')?.remove();
+ if(pkg.status==='draft')$('#teacher-review').insertAdjacentHTML('afterend',`<div id="draft-editor"><label>${tr('Title')}<input id="draft-title" maxlength="90" value="${esc(pkg.proposal.title)}"></label><label>${tr('Reason')}<textarea id="draft-reason" maxlength="700">${esc(pkg.proposal.reason)}</textarea></label>${pkg.proposal.coach_notes.map((note,i)=>`<label>${tr('Coach note')} ${i+1}<textarea data-note="${i}" maxlength="450">${esc(note)}</textarea></label>`).join('')}<button id="draft-save">${tr('Save draft edits')}</button></div>`);
+ if(pkg.config.custom_topic&&$('#draft-editor'))$('#draft-editor').insertAdjacentHTML('beforeend',`<details><summary>${tr('Edit full draft JSON')}</summary><textarea id="custom-draft-json" rows="18">${esc(JSON.stringify({lesson:pkg.proposal.lesson,questions:pkg.proposal.questions,batch_feedback:pkg.proposal.batch_feedback,learning_summary:pkg.proposal.learning_summary},null,2))}</textarea><button id="save-custom-draft">${tr('Validate and save')}</button></details>`);
+ if($('#save-custom-draft'))$('#save-custom-draft').onclick=async()=>{try{const draft=JSON.parse($('#custom-draft-json').value);await api('/api/packages/'+pkg.id+'/edit',{...draft,plan_hash:pkg.plan_hash});await refresh();await openPackage(pkg.id);}catch(e){toast(e.message,true);}};
+ if($('#draft-save'))$('#draft-save').onclick=async()=>{try{await api('/api/packages/'+pkg.id+'/edit',{plan_hash:pkg.plan_hash,title:$('#draft-title').value,reason:$('#draft-reason').value,coach_notes:[...document.querySelectorAll('[data-note]')].map(x=>x.value)});await refresh();await openPackage(pkg.id);}catch(e){toast(e.message,true);}};
+ $('#approval-row').hidden=pkg.status!=='draft';$('#reviewed').checked=false;$('#print-controls').hidden=pkg.status==='draft';
+}
+function renderRows(){
+ if(!pkg){$('#trace-body').innerHTML='';return;}
+ const option=(v,label)=>`<option value="${v}">${label}</option>`;
+ function field(r,k,values,disabled=false){return `<select data-task="${r.task_id}" data-field="${k}" aria-label="${r.task_id} ${k}" ${disabled?'disabled':''}>${option('','—')}${values.map(v=>`<option value="${v}" ${r[k]===v?'selected':''}>${v}</option>`).join('')}</select>`;}
+ $('#trace-body').innerHTML=rows.map(r=>{const n=pkg.plan.nodes.find(n=>n.id===r.task_id);return `<tr class="${scanIssues.some(i=>i.startsWith(r.task_id+' /'))?'uncertain':''}"><td>${r.task_id}</td><td>${field(r,'order',[1,2,3,4,5,6,7,8],pkg.plan.layout==='batch-v1')}</td><td>${field(r,'first_answer',['A','B','C','D'],n.type!=='choice_question')}</td><td>${field(r,'hint_level',[0,1,2],n.type!=='choice_question')}</td><td>${field(r,'retry_answer',['A','B','C','D'],n.type!=='choice_question')}</td></tr>`;}).join('');
+ $('#skipped-groups')?.remove();
+ if(pkg.plan.routing_version==='free-guidance-1'){
+  const box=document.createElement('fieldset');box.id='skipped-groups';box.innerHTML=`<legend>${tr('Confirm unassigned groups')}</legend><p>${tr('Blank rows are unknown unless you confirm the group was not assigned.')}</p>`+pkg.plan.batches.map(b=>`<label><input type="checkbox" data-skipped="${b.batch}" ${skippedBatches.includes(b.batch)?'checked':''}>${tr('Group')} ${b.batch}</label>`).join('');$('#trace-body').closest('table').after(box);box.onchange=()=>{skippedBatches=[...box.querySelectorAll('input:checked')].map(x=>Number(x.dataset.skipped));saveDraft();};
+ }
+ document.querySelectorAll('.trace-table tr').forEach(tr=>{if(tr.children[1])tr.children[1].hidden=pkg.plan.layout==='batch-v1';});
+ $('#trace-source').textContent=traceSource==='synthetic'?'SYNTHETIC SAMPLE':traceSource==='scan'?'Local scan · review required':'Manual entry';
+ document.querySelectorAll('#trace-body select').forEach(e=>e.onchange=()=>{const row=rows.find(r=>r.task_id===e.dataset.task);row[e.dataset.field]=e.value===''?null:['order','hint_level'].includes(e.dataset.field)?Number(e.value):e.value;$('#trace-confirmed').checked=false;saveDraft();});
+}
+function renderResults(){
+ $('#learning-summary').innerHTML=pkg?markdown(pkg.ai_summary?.content.summary||pkg.learning_summary||tr('No AI summary yet.'))+(pkg.ai_summary?.content.next_steps?.length?'<h3>'+tr('Measures')+'</h3><ul>'+pkg.ai_summary.content.next_steps.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>':''):esc(tr('Open a package first'));$('#refresh-ai-summary').disabled=!pkg;
+ const e=pkg?.evaluation,s=student();if(!e){$('#results-content').innerHTML='<div class="empty">Collect and confirm a record first. Its observations will appear here.</div>';return;}
+ $('#results-content').innerHTML=`<div class="section-heading"><h2>Round ${pkg.round} / Observations</h2><span class="pill">${e.source==='synthetic'||s?.synthetic?'SYNTHETIC DATA':esc(e.source.toUpperCase())} · revision ${pkg.trace_revision}</span></div><p>${esc(e.path.join(' → '))}</p><div class="result-metrics"><div><strong>${e.first_correct} / ${e.first_total}</strong><small>Correct first answers / readable first answers</small></div><div><strong>${e.independent_correct} / ${e.independent_total}</strong><small>Correct without reported hints / hint-free answers</small></div><div><strong>${e.warnings.length}</strong><small>Path issues preserved for review</small></div></div>${e.warnings.map(w=>`<div class="warning">${esc(w)}</div>`).join('')}<table class="result-table"><thead><tr><th>Task</th><th>First answer</th><th>Hint</th><th>Observation</th></tr></thead><tbody>${e.results.map(r=>`<tr><td>${r.task_id}</td><td>${esc(r.first_answer||'Unknown')}</td><td>${r.hint_level??'Unknown'}</td><td>${r.first_correct===null?esc(r.completion.replaceAll('_',' ')):r.first_correct?'Correct':'Needs another check'}</td></tr>`).join('')}</tbody></table><div class="callout"><b>Next planning state: ${esc(pkg.config.custom_topic?'Topic-specific AI review':s?.state.status.replaceAll('_',' ')||'unknown')}</b><p>${esc(e.note)} Paper hints and visit order are self-reported.</p></div><div class="button-row" style="margin-top:22px"><button id="next-round" class="primary">Plan the next round →</button><button id="export-round" class="secondary">Export this round’s JSON</button></div>`;
+ $('#next-round').onclick=()=>{show('plan');window.scrollTo({top:0,behavior:'smooth'});toast('The next generation will use the confirmed records. Review the teaching brief and generate.');};
+ $('#export-round').onclick=()=>exportLearningPackage();
+}
+function renderCanvas(){
+ if(!scanImage)return;const c=$('#scan-canvas');c.width=scanImage.width;c.height=scanImage.height;c.dataset.loaded='1';const ctx=c.getContext('2d');ctx.drawImage(scanImage,0,0);corners.forEach((p,i)=>{ctx.fillStyle='#d24a2e';ctx.beginPath();ctx.arc(p.x,p.y,10,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff';ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.fillText(i+1,p.x,p.y+4);});
+ $('#corner-help').textContent=corners.length===4?'Four markers selected. Adjust by resetting, or read the marked circles.':`Click ${['top-left','top-right','bottom-right','bottom-left'][corners.length]} black marker centre (${corners.length}/4).`;
+}
+async function setScan(file,source='scan'){
+ requirePackage();$('#scan-canvas').removeAttribute('data-loaded');$('#scan-issues').textContent='';scanImage=null;scanRead=false;scanImage=await loadImage(file);scanSource=source;scanRead=false;if(pkg.plan.layout!=='batch-v1')scanOriginal=null;corners=[];if(pkg.plan.layout!=='batch-v1'){scanIssues=[];rows=blankRows(pkg);}traceSource=traceSource==='synthetic'?'synthetic':source;$('#trace-confirmed').checked=false;renderRows();
+ try{corners=autoCorners(scanImage);}catch(e){toast(e.message,true);}renderCanvas();$('#scan-issues').textContent='Image loaded locally. Check the red marker positions, then read.';
+}
+function requirePackage(){if(!pkg||pkg.status==='draft')throw Error('Open and approve a package first.');}
+
+document.querySelectorAll('.nav').forEach(b=>b.onclick=async()=>{try{const tab=b.dataset.tab;if(tab==='scan'&&(!pkg||pkg.status==='draft')){const p=selectedPackages().filter(x=>x.status!=='draft').at(-1);if(p)await openPackage(p.id);}if(tab==='results'&&!pkg){const p=selectedPackages().at(-1);if(p)await openPackage(p.id);}show(tab);}catch(e){toast(e.message,true);}});
+document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>document.getElementById(b.dataset.close).close());
+on('#home-button','click',e=>{e.preventDefault();show('overview');});
+on('#start-button','click',()=>{if(!studentId)$('#add-student').click();else show('plan');});
+on('#student-select','change',async e=>{studentId=e.target.value;pkg=null;rows=[];scanImage=null;corners=[];scanIssues=[];$('#package-panel').hidden=true;await refresh();renderRows();renderResults();$('#scan-canvas').removeAttribute('data-loaded');});
+on('#add-student','click',()=>$('#student-dialog').showModal());
+on('#student-form','submit',async e=>{e.preventDefault();const f=new FormData(e.target),button=e.target.querySelector('button[type=submit]');button.disabled=true;try{const s=await api('/api/students',{label:f.get('label'),grade:f.get('grade'),class_name:f.get('class_name'),diagnostic:Object.fromEntries(['D01','D02','D03'].map(k=>[k,f.get(k)||null]))});studentId=s.id;pkg=null;$('#package-panel').hidden=true;await refresh();$('#student-dialog').close();show('plan');toast('Learner created. Set the teaching brief and generate a plan.');await importPendingPackage();}finally{button.disabled=false;}});
+on('#settings-button','click',()=>{const f=$('#settings-form');f.elements.base_url.value=data.provider.base_url;f.elements.model.value=data.provider.model;f.elements.api_key.value='';f.elements.provider.innerHTML=Object.entries(data.provider_presets||{}).map(([id,p])=>`<option value="${id}">${esc(p.label)}</option>`).join('');f.elements.provider.value=data.provider.provider||'custom';f.elements.protocol.value=data.provider.protocol||'chat';f.elements.json_mode.value=data.provider.json_mode||'auto';$('#settings-dialog').showModal();});
+on('#settings-form','submit',async e=>{e.preventDefault();const f=new FormData(e.target);await api('/api/settings',Object.fromEntries(f.entries()));e.target.elements.api_key.value='';$('#settings-dialog').close();await refresh();toast('Provider configuration saved in server memory. Live mode is now available if a key is configured.');});
+on('#plan-form','submit',async e=>{e.preventDefault();if(!studentId)throw Error('Create a learner first.');const b=$('#generate-button');if(!data.provider.configured){$('#settings-button').click();throw Error('Configure AI before generating.');}b.disabled=true;$('#student-select').disabled=true;b.textContent='Planning with live AI…';try{const p=await api('/api/generate',{student_id:studentId,mode:'live',request_id:crypto.randomUUID(),config:teachingConfig()});await refresh();await openPackage(p.id);$('#package-panel').scrollIntoView({behavior:'smooth',block:'start'});toast('Draft ready. Review the content before issuing it.');}finally{b.disabled=false;$('#student-select').disabled=false;b.textContent='Generate learning plan ↗';}});
+on('#approve-button','click',async()=>{if(!$('#reviewed').checked)throw Error('Review and confirm the questions, worked answers and coach notes first.');await api('/api/packages/'+pkg.id+'/approve',{plan_hash:pkg.plan_hash,reviewed:true});await refresh();await openPackage(pkg.id);toast('Package approved. This version is frozen for printing and scanning.');});
+document.querySelectorAll('[data-print]').forEach(b=>b.onclick=()=>{if(!pkg)return;openView(`/print.html?id=${encodeURIComponent(pkg.id)}&view=${b.dataset.print}`);});
+on('#student-view-button','click',()=>{requirePackage();openView(`/learn.html?id=${pkg.id}&token=${encodeURIComponent(pkg.student_token)}`);});
+on('#collect-button','click',()=>{requirePackage();show('scan');window.scrollTo(0,0);});
+on('#scan-package-select','change',async e=>{if(e.target.value)await openPackage(e.target.value);});
+on('#scan-file','change',async e=>{if(e.target.files[0])await setScan(e.target.files[0]);});
+on('#auto-corners','click',()=>{if(!scanImage)throw Error('Upload a record image first.');corners=autoCorners(scanImage);scanRead=false;renderCanvas();});
+on('#reset-corners','click',()=>{corners=[];scanRead=false;renderCanvas();});
+on('#scan-canvas','click',e=>{if(!scanImage)return;if(corners.length>=4)corners=[];const box=e.target.getBoundingClientRect();corners.push({x:(e.clientX-box.left)*e.target.width/box.width,y:(e.clientY-box.top)*e.target.height/box.height});scanRead=false;renderCanvas();});
+on('#read-sheet','click',()=>{requirePackage();if(!scanImage)throw Error('Upload a record image first.');const result=readSheet(scanImage,corners,pkg);if(pkg.plan.layout==='batch-v1'){const incoming=new Map(result.rows.map(r=>[r.task_id,r]));scanOriginal=(scanOriginal||blankRows(pkg)).map(r=>structuredClone(incoming.get(r.task_id)||r));rows=rows.map(r=>incoming.get(r.task_id)||r);scanIssues=scanIssues.filter(issue=>!result.rows.some(r=>issue.startsWith(r.task_id+' /'))).concat(result.issues);}else{rows=result.rows;scanOriginal=structuredClone(rows);scanIssues=result.issues;}traceSource=traceSource==='synthetic'?'synthetic':scanSource;scanRead=true;$('#trace-confirmed').checked=false;renderRows();$('#scan-issues').innerHTML=`<p>Sheet ${esc(result.code)} matched. ${result.issues.length} ambiguous field(s). Page ${result.page||1}. Other pages are retained.</p>${result.issues.map(i=>`<p class="warning">${esc(i)}</p>`).join('')}<p>All rows require teacher confirmation before saving.</p>`;toast('Marks read. Review the table, including any blanks, and confirm.');});
+on('#manual-clear','click',()=>{requirePackage();rows=blankRows(pkg);traceSource='manual';scanIssues=[];scanRead=false;scanOriginal=null;$('#trace-confirmed').checked=false;renderRows();});
+on('#save-trace','click',async()=>{requirePackage();if(!$('#trace-confirmed').checked)throw Error('Check the record and tick the confirmation box.');if(traceSource==='scan'&&!scanRead)throw Error('Read this image first, or clear the table for manual entry.');const trace={package_id:pkg.id,package_version:pkg.version,confirmed:true,source:traceSource,rows,skipped_batches:[...document.querySelectorAll('[data-skipped]:checked')].map(x=>Number(x.dataset.skipped)),scan_review:scanOriginal?{method:'local-omr-area-v3',original_rows:scanOriginal,issues:scanIssues,corrected_fields:rows.flatMap(r=>Object.keys(r).filter(k=>k!=='task_id'&&r[k]!==scanOriginal.find(x=>x.task_id===r.task_id)?.[k]).map(k=>({task_id:r.task_id,field:k,from:scanOriginal.find(x=>x.task_id===r.task_id)?.[k]??null,to:r[k]})))}:null};const result=await api('/api/packages/'+pkg.id+'/trace',{trace,expected_revision:pkg.trace_revision||0});localStorage.removeItem('paper-draft-'+pkg.id);await refresh();await openPackage(pkg.id);show('results');window.scrollTo(0,0);toast(result.duplicate?'Identical record already saved. No duplicate result was added.':'Evidence saved. The next plan will use these observations.');});
+on('#export-button','click',async()=>{download('paper-ai-local-export.json',JSON.stringify(await api('/api/export'),null,2));toast('Export downloaded. Review free text and aliases before sharing it.');});
+startI18n();$('#ui-language').value=locale;$('#plan-form').elements.language.value=locale;
+refresh().catch(e=>toast('Cannot connect to the local app: '+e.message,true));
+
+
+function teachingConfig(){const f=new FormData($('#plan-form'));return {custom_topic:true,topic:f.get('topic'),background:f.get('background'),batch_size:Number(f.get('batch_size')),batch_count:Number(f.get('batch_count')),include_reference_bank:false,goal:f.get('goal'),offline_days:Number(f.get('offline_days')),max_pages:Number(f.get('max_pages')),language:f.get('language')};}
+
+on('#ui-language','change',e=>{setLocale(e.target.value);if(activeNotice&&!$('#notice').hidden)$('#notice').textContent=activeNotice.error?trError(activeNotice.message):tr(activeNotice.message);if(pkg){const unsaved=[...document.querySelectorAll('#draft-editor input,#draft-editor textarea')].map(x=>({id:x.id,note:x.dataset.note,value:x.value}));renderPackage();for(const x of unsaved){const el=x.id?document.getElementById(x.id):document.querySelector(`[data-note="${x.note}"]`);if(el)el.value=x.value;}renderRows();renderResults();}});
+function renderBatch(){
+ const selected=new Set([...document.querySelectorAll('[data-batch]:checked')].map(x=>x.value));
+ const filter=$('#class-filter').value,query=$('#learner-search').value.toLowerCase();
+ const classes=[...new Set(data.students.map(s=>s.class_name||'Default'))];
+ $('#class-filter').innerHTML='<option value="">All classes</option>'+classes.map(c=>`<option ${c===filter?'selected':''} value="${esc(c)}">${esc(c)}</option>`).join('');
+ const visible=data.students.filter(s=>(!filter||(s.class_name||'Default')===filter)&&(!query||(s.label+' '+s.id).toLowerCase().includes(query)));
+ $('#batch-learners').innerHTML=visible.map(s=>`<label class="checkbox user-content"><input type="checkbox" data-batch value="${esc(s.id)}" ${selected.has(s.id)?'checked':''}>${esc(s.label)} · ${esc(s.class_name||'Default')}</label>`).join('');
+}
+on('#learner-search','input',renderBatch);on('#class-filter','change',renderBatch);
+async function jobs(){const result=await api('/api/jobs');$('#jobs-list').innerHTML=result.jobs.map(j=>`<p>${esc(j.student_id)} · ${esc(j.status)} · ${esc(j.created_at)} ${j.package_id?`<button data-job="${esc(j.package_id)}">Open round ↗</button>`:''}</p>`).join('');document.querySelectorAll('[data-job]').forEach(b=>b.onclick=async()=>{try{const p=await api('/api/packages/'+b.dataset.job);studentId=p.student_id;await refresh();await openPackage(p.id);show('plan');}catch(e){toast(e.message,true);}});}
+on('#jobs-refresh','click',jobs);
+on('#batch-generate','click',async()=>{
+ const ids=[...document.querySelectorAll('[data-batch]:checked')].map(x=>x.value);if(!ids.length)throw Error(tr('Select learners first.'));
+ const config=teachingConfig(),mode='live';if(mode==='live'&&!data.provider.configured){$('#settings-button').click();throw Error('Configure AI before generating.');}let done=0;
+ for(const id of ids){$('#batch-status').textContent=`${done} / ${ids.length} · ${id}`;try{await api('/api/generate',{student_id:id,mode,config,request_id:crypto.randomUUID()});done++;}catch(e){$('#batch-status').textContent=`${done} / ${ids.length} · ${tr(e.message)}`;await refresh();await jobs();return;}}
+ $('#batch-status').textContent=`${done} / ${ids.length}`;await refresh();await jobs();
+});
+function batchPrint(view){const selected=new Set([...document.querySelectorAll('[data-batch]:checked')].map(x=>x.value));const ids=[...selected].map(id=>data.packages.filter(p=>p.student_id===id&&p.status!=='draft').at(-1)?.id).filter(Boolean);if(!ids.length)throw Error('Approve a package first');if(ids.length!==selected.size)throw Error(tr('Every selected learner needs an approved package.'));if(ids.length>50)throw Error('Select at most 50 learners');openView('/print.html?ids='+ids.join(',')+'&view='+view);}
+on('#batch-booklets','click',()=>batchPrint('booklet'));on('#batch-records','click',()=>batchPrint('record'));
+on('#backup-download','click',async()=>download('paper-ai-backup.json',JSON.stringify(await api('/api/backup'),null,2)));
+on('#backup-file','change',async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>19000000)throw Error('Backup exceeds 19 MB');const backup=JSON.parse(await file.text());if(!confirm(tr('Merge this backup? Existing conflicting records will be rejected.')))return;const result=await api('/api/restore',{backup,confirmed:true});await refresh();toast('Merged records: '+result.merged);}finally{e.target.value='';}});
+on('#discard-draft','click',async()=>{if(!pkg||pkg.status!=='draft')return;if(!confirm(tr('Discard this unissued draft?')))return;await api('/api/packages/'+pkg.id+'/discard',{plan_hash:pkg.plan_hash});pkg=null;$('#package-panel').hidden=true;await refresh();});
+function saveDraft(){if(pkg)localStorage.setItem('paper-draft-'+pkg.id,JSON.stringify({revision:pkg.trace_revision||0,rows,source:traceSource,skipped_batches:skippedBatches}));}
+function restoreDraft(){if(!pkg)return;try{const draft=JSON.parse(localStorage.getItem('paper-draft-'+pkg.id));if(draft&&draft.revision===(pkg.trace_revision||0)&&draft.rows.length===rows.length){rows=draft.rows;skippedBatches=draft.skipped_batches||[];traceSource=draft.source==='scan'?'manual':draft.source;renderRows();toast('Unsaved corrections restored. Check and confirm before saving.');}}catch{}}
+window.addEventListener('beforeunload',()=>{if(pkg&&rows.length)saveDraft();});
+
+on('#connect-ai-main','click',()=>$('#settings-button').click());
+on('#refresh-ai-summary','click',async()=>{if(!pkg)throw Error('Open a package first');if(!data.provider.configured){$('#settings-button').click();throw Error('Configure AI before generating.');}const result=await api('/api/packages/'+pkg.id+'/summary',{});pkg.ai_summary=result;renderResults();});
+
+on('#provider-select','change',e=>{const p=data.provider_presets[e.target.value],f=$('#settings-form');f.elements.base_url.value=p.base_url;f.elements.protocol.value=p.protocol;f.elements.model.value=p.model;f.elements.api_key.value='';f.elements.json_mode.value='auto';});
+
+on('#summary-package-select','change',async e=>{if(e.target.value)await openPackage(e.target.value);});
+on('#home-summary','click',()=>document.querySelector('[data-tab=results]').click());
+
+async function exportLearningPackage(){
+ if(!pkg)throw Error('Open a package first');
+ await download(pkg.id+'.paper-ai.json',JSON.stringify(await api('/api/packages/'+pkg.id+'/portable'),null,2));
+ toast('Learning package exported. It contains no learner records or API keys.');
+}
+async function importPendingPackage(){
+ if(!pendingPackage||!studentId)return;
+ const result=await api('/api/packages/import',{student_id:studentId,learning_package:pendingPackage});
+ pendingPackage=null;await refresh();await openPackage(result.package_id);show('plan');
+ $('#import-status').textContent=tr(result.duplicate?'This learning package is already in your workspace.':'Learning package imported. Review the content before printing.');
+ toast(result.duplicate?'This learning package is already in your workspace.':'Learning package imported. Review the content before printing.');
+ $('#package-panel').scrollIntoView({behavior:'smooth',block:'start'});
+}
+on('#package-export','click',exportLearningPackage);
+on('#home-import','click',()=>$('#package-file').click());
+on('#package-file','change',async e=>{
+ const file=e.target.files[0];if(!file)return;
+ try{
+  if(file.size>4000000)throw Error('Learning package exceeds 4 MB.');
+  pendingPackage=null;
+  try{pendingPackage=JSON.parse(await file.text());}catch{throw Error('Choose a valid learning package JSON file.');}
+  if(!studentId){$('#add-student').click();toast('Create a learner to receive this learning package.');return;}
+  await importPendingPackage();
+ }finally{e.target.value='';}
+});
+
+
