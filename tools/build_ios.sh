@@ -10,6 +10,8 @@ xcodegen generate
 arch="$(uname -m)"
 xcodebuild -project PaperAI.xcodeproj -scheme PaperAI -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build/simulator ARCHS="$arch" ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO build
 xcodebuild -project PaperAI.xcodeproj -scheme PaperAI -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -archivePath build/PaperAI.xcarchive ARCHS=arm64 CODE_SIGNING_ALLOWED=NO archive
+expected_version=$(python3 -c 'import sys;sys.path.insert(0,"../../app");from core import VERSION;print(VERSION)')
+python3 -c 'import plistlib,sys;info=plistlib.load(open("build/PaperAI.xcarchive/Products/Applications/PaperAI.app/Info.plist","rb"));assert info["CFBundleShortVersionString"]==sys.argv[1],info;print("Verified iOS bundle version:",info["CFBundleShortVersionString"])' "$expected_version"
 mkdir -p ../../dist/ios/Payload
 cp -R build/PaperAI.xcarchive/Products/Applications/PaperAI.app ../../dist/ios/Payload/
 cd ../../dist/ios
