@@ -24,6 +24,8 @@ Android and iOS embed the local Python service and the same interface. A phone r
 
 Builds and screenshots are produced by [formal release checks](https://github.com/keller-52/UNUAI/actions/workflows/release-checks.yml). Android output is an installable APK. iOS output includes an unsigned device IPA, a simulator app and an Xcode project; installing on an iPhone requires your Apple signing identity and provisioning profile. See [mobile build and installation](docs/current/mobile_build.md).
 
+The [2026-10-01 verified build](https://github.com/keller-52/UNUAI/actions/runs/36822787600) passed all 62 Python tests, browser/scanner checks and both native startup checks. Download its Android or iOS artifact, then extract the APK, IPA or project. [Validation and file checksums](docs/current/validation.md) record the exact build and remaining physical-device checks.
+
 ## Documentation
 
 Use the [document index](docs/README.md) for the project overview, current operation and acceptance requirements, technical contracts, mobile delivery and archived development records. The archive records historical decisions and results; current instructions take precedence.
