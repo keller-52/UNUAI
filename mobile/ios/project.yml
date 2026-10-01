@@ -1,5 +1,7 @@
 name: PaperAI
 options:
+  projectFormat: xcode15_3
+  xcodeVersion: '15.4'
   bundleIdPrefix: io.github.keller52
   deploymentTarget:
     iOS: '15.0'
