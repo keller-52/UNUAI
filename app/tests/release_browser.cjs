@@ -11,8 +11,12 @@ fs.writeFileSync(out+'/learning-package.json',JSON.stringify(portable));
  const browser=process.env.PAPER_BROWSER_CDP?await chromium.connectOverCDP(process.env.PAPER_BROWSER_CDP):await chromium.launch({headless:true,args:['--no-sandbox']});
  try{
   const page=await browser.newPage({viewport:{width:1440,height:1050}}),errors=[];
+  // Older Android WebViews lack Array.at: test the actual navigation without it.
+  await page.addInitScript(()=>{delete Array.prototype.at;});
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto(base);await page.waitForFunction(()=>document.body.dataset.appReady==='1');
+  for(const tab of ['scan','results']){await page.click('[data-tab='+tab+']');await page.waitForSelector('#'+tab+'.active');}
+  await page.click('#home-button');
   assert.equal(await page.locator('.showcase-panel,#sample-scan-button,#seed-button,#planning-mode').count(),0);
   const noDemo=async()=>assert.doesNotMatch(await page.locator('body').innerText(),/demo|prototype|rehearsal|showcase question banks|预制题库|规则演示/i);
   for(const lang of ['en','zh','en']){await page.selectOption('#ui-language',lang);assert.equal(await page.locator('#ai-connection-label').innerText(),lang==='zh'?'AI 未配置':'AI not configured');await noDemo();}
@@ -31,6 +35,25 @@ fs.writeFileSync(out+'/learning-package.json',JSON.stringify(portable));
   await page.fill('#draft-title','Reviewed reading with evidence');await page.click('#draft-save');
   await page.waitForFunction(()=>document.querySelector('#package-title').textContent.includes('Reviewed reading with evidence'));
   await page.check('#reviewed');await page.click('#approve-button');await page.waitForSelector('#print-controls:not([hidden])');
+  // Reload clears the open package, exercising automatic latest-package selection.
+  for(const tab of ['scan','results']){
+   await page.reload();await page.waitForFunction(()=>document.body.dataset.appReady==='1');
+   assert.equal(await page.evaluate(()=>typeof Array.prototype.at),'undefined');
+   await page.click('[data-tab='+tab+']');await page.waitForSelector('#'+tab+'.active');
+   assert.equal(await page.locator('#'+(tab==='scan'?'scan':'summary')+'-package-select').inputValue(),id);
+   assert.match(await page.locator('#package-title').innerText(),/Reviewed reading with evidence/);
+  }
+  await page.click('[data-tab=plan]');
+  await page.locator('#batch-booklets').evaluate(e=>e.closest('details').open=true);
+  await page.check('[data-batch]');
+  for(const [button,view] of [['batch-booklets','booklet'],['batch-records','record']]){
+   const [print]=await Promise.all([page.waitForEvent('popup'),page.click('#'+button)]);
+   await print.waitForFunction(()=>document.body.dataset.ready||document.body.dataset.error);
+   assert.equal(new URL(print.url()).searchParams.get('ids'),id);
+   assert.equal(new URL(print.url()).searchParams.get('view'),view);
+   assert.equal(await print.getAttribute('body','data-error'),null);await print.close();
+  }
+  await page.locator('#batch-booklets').evaluate(e=>e.closest('details').open=false);
   for(const lang of ['zh','en']){await page.selectOption('#ui-language',lang);await noDemo();await page.screenshot({path:out+'/studio-'+lang+'.png',fullPage:true});}
   const [exported]=await Promise.all([page.waitForEvent('download'),page.click('#package-export')]);
   await exported.saveAs(out+'/exported-package.json');const payload=JSON.parse(fs.readFileSync(out+'/exported-package.json','utf8'));

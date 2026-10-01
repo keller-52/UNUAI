@@ -91,7 +91,7 @@ async function setScan(file,source='scan'){
 }
 function requirePackage(){if(!pkg||pkg.status==='draft')throw Error('Open and approve a package first.');}
 
-document.querySelectorAll('.nav').forEach(b=>b.onclick=async()=>{try{const tab=b.dataset.tab;if(tab==='scan'&&(!pkg||pkg.status==='draft')){const p=selectedPackages().filter(x=>x.status!=='draft').at(-1);if(p)await openPackage(p.id);}if(tab==='results'&&!pkg){const p=selectedPackages().at(-1);if(p)await openPackage(p.id);}show(tab);}catch(e){toast(e.message,true);}});
+document.querySelectorAll('.nav').forEach(b=>b.onclick=async()=>{try{const tab=b.dataset.tab;if(tab==='scan'&&(!pkg||pkg.status==='draft')){const p=selectedPackages().filter(x=>x.status!=='draft').slice(-1)[0];if(p)await openPackage(p.id);}if(tab==='results'&&!pkg){const p=selectedPackages().slice(-1)[0];if(p)await openPackage(p.id);}show(tab);}catch(e){toast(e.message,true);}});
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>document.getElementById(b.dataset.close).close());
 on('#home-button','click',e=>{e.preventDefault();show('overview');});
 on('#start-button','click',()=>{if(!studentId)$('#add-student').click();else show('plan');});
@@ -138,7 +138,7 @@ on('#batch-generate','click',async()=>{
  for(const id of ids){$('#batch-status').textContent=`${done} / ${ids.length} · ${id}`;try{await api('/api/generate',{student_id:id,mode,config,request_id:crypto.randomUUID()});done++;}catch(e){$('#batch-status').textContent=`${done} / ${ids.length} · ${tr(e.message)}`;await refresh();await jobs();return;}}
  $('#batch-status').textContent=`${done} / ${ids.length}`;await refresh();await jobs();
 });
-function batchPrint(view){const selected=new Set([...document.querySelectorAll('[data-batch]:checked')].map(x=>x.value));const ids=[...selected].map(id=>data.packages.filter(p=>p.student_id===id&&p.status!=='draft').at(-1)?.id).filter(Boolean);if(!ids.length)throw Error('Approve a package first');if(ids.length!==selected.size)throw Error(tr('Every selected learner needs an approved package.'));if(ids.length>50)throw Error('Select at most 50 learners');openView('/print.html?ids='+ids.join(',')+'&view='+view);}
+function batchPrint(view){const selected=new Set([...document.querySelectorAll('[data-batch]:checked')].map(x=>x.value));const ids=[...selected].map(id=>data.packages.filter(p=>p.student_id===id&&p.status!=='draft').slice(-1)[0]?.id).filter(Boolean);if(!ids.length)throw Error('Approve a package first');if(ids.length!==selected.size)throw Error(tr('Every selected learner needs an approved package.'));if(ids.length>50)throw Error('Select at most 50 learners');openView('/print.html?ids='+ids.join(',')+'&view='+view);}
 on('#batch-booklets','click',()=>batchPrint('booklet'));on('#batch-records','click',()=>batchPrint('record'));
 on('#backup-download','click',async()=>download('paper-ai-backup.json',JSON.stringify(await api('/api/backup'),null,2)));
 on('#backup-file','change',async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>19000000)throw Error('Backup exceeds 19 MB');const backup=JSON.parse(await file.text());if(!confirm(tr('Merge this backup? Existing conflicting records will be rejected.')))return;const result=await api('/api/restore',{backup,confirmed:true});await refresh();toast('Merged records: '+result.merged);}finally{e.target.value='';}});
