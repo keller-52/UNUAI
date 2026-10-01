@@ -491,7 +491,9 @@ class Handler(BaseHTTPRequestHandler):
                     for field in (("title", "reason", "coach_notes", "learning_summary", "lesson", "questions", "batch_feedback") if package["config"].get("custom_topic") else ("title", "reason", "coach_notes")):
                         if field in body: proposal[field] = body[field]
                     if package["config"].get("custom_topic"):
-                        validate_workbook(proposal,package["request"]["student_state"],package["config"]["question_count"],package["config"]["batch_size"])
+                        state = ({"evidence": [{"ref": ref} for ref in package["proposal"].get("evidence_refs", [])]}
+                                 if package.get("mode") == "imported" else package["request"]["student_state"])
+                        validate_workbook(proposal,state,package["config"]["question_count"],package["config"]["batch_size"])
                     else:validate_proposal(proposal, package["request"]["student_state"], len(proposal["question_ids"]))
                     package["proposal"] = proposal
                     if package["config"].get("custom_topic"):package["learning_summary"]=proposal["learning_summary"]

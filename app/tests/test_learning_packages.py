@@ -110,5 +110,24 @@ class LearningPackageTests(unittest.TestCase):
             with self.subTest(path=path,body=body),self.assertRaises(urllib.error.HTTPError) as caught:opener.open(req)
             self.assertEqual(caught.exception.code,400);caught.exception.close()
 
+    def test_imported_draft_can_be_edited_without_source_request(self):
+        server=make_server(0,Path(self.temp.name)/'edited.db')
+        server.store.save('students',{'id':'S','label':'Learner','grade':'Secondary','diagnostic':{}})
+        result=import_package(server.store,{'student_id':'S','learning_package':self.portable})
+        thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+        self.addCleanup(server.server_close);self.addCleanup(server.shutdown)
+        opener=urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        url=f'http://127.0.0.1:{server.server_port}/api/packages/{result["package_id"]}/edit'
+        body={'plan_hash':self.package['plan_hash'],'title':'Reviewed learning package'}
+        req=urllib.request.Request(url,data=json.dumps(body).encode(),headers={'Content-Type':'application/json','X-PaperAI':'local-teacher'})
+        with opener.open(req) as response:edited=json.load(response)
+        self.assertEqual(edited['plan']['title'],'Reviewed learning package')
+        self.assertEqual(edited['status'],'draft')
+        self.assertEqual(edited['request'],{})
+        self.assertEqual(server.store.evaluations('S'),[])
+        self.assertNotEqual(edited['plan_hash'],self.package['plan_hash'])
+        from learning_packages import checked_materials
+        checked_materials(export_package(edited))
+
 
 if __name__=='__main__':unittest.main()

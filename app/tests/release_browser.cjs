@@ -27,6 +27,9 @@ fs.writeFileSync(out+'/learning-package.json',JSON.stringify(portable));
   await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('already in your workspace'));
   const packages=await (await page.request.get(base+'/api/bootstrap')).json();assert.equal(packages.packages.length,1);
   const id=portable.package.id;
+  await page.locator('#teacher-review').evaluate(e=>e.parentElement.open=true);
+  await page.fill('#draft-title','Reviewed reading with evidence');await page.click('#draft-save');
+  await page.waitForFunction(()=>document.querySelector('#package-title').textContent.includes('Reviewed reading with evidence'));
   await page.check('#reviewed');await page.click('#approve-button');await page.waitForSelector('#print-controls:not([hidden])');
   for(const lang of ['zh','en']){await page.selectOption('#ui-language',lang);await noDemo();await page.screenshot({path:out+'/studio-'+lang+'.png',fullPage:true});}
   const [exported]=await Promise.all([page.waitForEvent('download'),page.click('#package-export')]);
