@@ -18,6 +18,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.TextView;
 import android.widget.FrameLayout;
+import android.view.View;
 import com.chaquo.python.Python;
 import com.chaquo.python.android.AndroidPlatform;
 import org.json.JSONObject;
@@ -32,8 +33,9 @@ public class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
-        getWindow().setStatusBarColor(0xff18392f);
+        getWindow().setStatusBarColor(0xfff4f5ef);
         getWindow().setNavigationBarColor(0xfff4f5ef);
+        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         TextView loading = new TextView(this);
         loading.setText("PAPER AI\nStarting your workspace… / 正在打开工作区…");
         loading.setTextSize(20); loading.setPadding(32, 80, 32, 32); setContentView(loading);
@@ -89,6 +91,7 @@ public class MainActivity extends Activity {
             }
         });
         FrameLayout content=new FrameLayout(this);
+        content.setBackgroundColor(0xfff4f5ef);
         content.addView(web,new FrameLayout.LayoutParams(-1,-1));
         content.setOnApplyWindowInsetsListener((view,insets)->{
             view.setPadding(insets.getSystemWindowInsetLeft(),insets.getSystemWindowInsetTop(),insets.getSystemWindowInsetRight(),insets.getSystemWindowInsetBottom());
