@@ -53,6 +53,7 @@ final class WorkspaceController: UIViewController, WKNavigationDelegate, WKUIDel
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard message.frameInfo.isMainFrame,let origin=message.frameInfo.request.url,local(origin),let data=message.body as? [String:Any],let action=data["action"] as? String else {return}
         if action=="open",let text=data["url"] as? String,let url=URL(string:text),local(url){web.load(URLRequest(url:url))}
+        else if action=="back" {if web.canGoBack {web.goBack()} else if let base=base {web.load(URLRequest(url:base))}}
         else if action=="print" {
             let printer=UIPrintInteractionController.shared
             let info=UIPrintInfo(dictionary:nil);info.jobName="PAPER AI";info.outputType = .general

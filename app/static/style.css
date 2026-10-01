@@ -51,7 +51,7 @@ main{margin-left:248px;padding:0 clamp(24px,3.3vw,52px) 64px;max-width:1680px}
 .mini-lines{height:34px;margin-top:13px;background:repeating-linear-gradient(transparent 0 10px,#dce3d7 11px 12px)}.mini-seal{position:absolute;right:-24px;bottom:-10px;display:grid;place-content:center;width:80px;height:80px;border:6px solid #edf3e4;border-radius:50%;background:var(--lime);text-align:center;font-size:10px;line-height:1.4;transform:rotate(-8deg)}
 .floating-tag{position:absolute;top:16px;left:6%;z-index:1;transform:rotate(-7deg);background:#dce8b7;padding:8px 12px;border:1px solid #b5c894;border-radius:4px;font-size:11px;letter-spacing:.04em}
 #overview{max-width:1180px;margin-inline:auto}
-.card{padding:28px;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 6px 22px #213d2c04;min-width:0}
+.card{padding:28px;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 6px 22px #213d2c04;min-width:0;overflow-wrap:anywhere}
 .home-overview{display:grid;grid-template-columns:1fr 2fr auto;gap:28px;align-items:center;margin-top:24px;border-top:3px solid #aebf8b}.home-overview h2{font-size:20px;margin:0}.home-overview p{font-size:14px;color:var(--muted);margin:0}.home-overview button{max-width:185px}
 .section-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;margin:12px 0 24px}.section-heading h1,.section-heading h2{margin:0}.section-heading .eyebrow{margin-bottom:8px}
 .generation-form,#package-panel,#rounds-panel,#manage-panel,#plan>.section-heading{width:100%;max-width:940px;margin-inline:auto}

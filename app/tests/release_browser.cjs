@@ -61,7 +61,7 @@ fs.writeFileSync(out+'/learning-package.json',JSON.stringify(portable));
   // Both languages at phone, tablet and desktop sizes must avoid horizontal overflow.
   for(const width of [360,390,768,1440])for(const lang of ['en','zh']){
    await page.setViewportSize({width,height:1000});await page.selectOption('#ui-language',lang);
-   for(const tab of ['plan','scan','results']){await page.click('[data-tab='+tab+']');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`${tab} ${width} ${lang}`);await noDemo();}
+   for(const tab of ['plan','scan','results']){await page.click('[data-tab='+tab+']');const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);if(overflow){await page.screenshot({path:out+'/overflow-'+tab+'-'+width+'-'+lang+'.png',fullPage:true});console.log(await page.evaluate(()=>[...document.querySelectorAll('body *')].filter(e=>e.getBoundingClientRect().right>innerWidth).map(e=>({tag:e.tagName,id:e.id,class:e.className,right:e.getBoundingClientRect().right})).slice(0,20)));}assert.equal(overflow,false,`${tab} ${width} ${lang}`);await noDemo();}
    await page.click('#home-button');if(width===390||width===1440)await page.screenshot({path:out+'/home-'+width+'-'+lang+'.png',fullPage:true});
   }
   assert.deepEqual(errors,[]);console.log('PASS: package import/export, learner creation, idempotence, review, four PDFs, actual OMR upload, records, AI-only generation, bilingual layouts and clean formal text');

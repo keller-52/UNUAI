@@ -17,6 +17,7 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.TextView;
+import android.widget.FrameLayout;
 import com.chaquo.python.Python;
 import com.chaquo.python.android.AndroidPlatform;
 import org.json.JSONObject;
@@ -74,13 +75,24 @@ public class MainActivity extends Activity {
                 Intent pick=new Intent(Intent.ACTION_OPEN_DOCUMENT);pick.addCategory(Intent.CATEGORY_OPENABLE);
                 String[] accepted=params.getAcceptTypes();
                 pick.setType("*/*");
-                if (accepted.length>0) pick.putExtra(Intent.EXTRA_MIME_TYPES,accepted);
+                java.util.ArrayList<String> types=new java.util.ArrayList<>();
+                for(String value:accepted)for(String item:value.split(",")) {
+                    String mime=item.trim();if(mime.equals(".json"))mime="application/json";
+                    if(mime.contains("/") && !types.contains(mime))types.add(mime);
+                }
+                if (!types.isEmpty()) pick.putExtra(Intent.EXTRA_MIME_TYPES,types.toArray(new String[0]));
                 pick.putExtra(Intent.EXTRA_ALLOW_MULTIPLE,params.getMode()==FileChooserParams.MODE_OPEN_MULTIPLE);
                 try { startActivityForResult(pick,PICK_FILE); } catch (Exception e) { fileCallback.onReceiveValue(null);fileCallback=null; }
                 return true;
             }
         });
-        setContentView(web);web.loadUrl(base);
+        FrameLayout content=new FrameLayout(this);
+        content.addView(web,new FrameLayout.LayoutParams(-1,-1));
+        content.setOnApplyWindowInsetsListener((view,insets)->{
+            view.setPadding(insets.getSystemWindowInsetLeft(),insets.getSystemWindowInsetTop(),insets.getSystemWindowInsetRight(),insets.getSystemWindowInsetBottom());
+            return insets;
+        });
+        setContentView(content);content.requestApplyInsets();web.loadUrl(base);
     }
     private void checkReady(int attempt) {
         web.evaluateJavascript("document.body.dataset.appReady==='1'", result -> {
@@ -94,6 +106,7 @@ public class MainActivity extends Activity {
                 try {
                     JSONObject message=new JSONObject(json);String action=message.getString("action");
                     if (action.equals("open")) {String url=message.getString("url");if(local(url))web.loadUrl(url);}
+                    else if (action.equals("back")) {if(web.canGoBack())web.goBack();else web.loadUrl(base);}
                     else if (action.equals("print")) {
                         PrintManager manager=(PrintManager)getSystemService(PRINT_SERVICE);
                         manager.print("PAPER AI",web.createPrintDocumentAdapter("PAPER AI"),null);

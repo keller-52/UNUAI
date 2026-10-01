@@ -1,4 +1,4 @@
-import {nativeBridge,printView,saveFile} from './mobile.js';
+import {nativeBridge,printView,addNativeBack} from './mobile.js';
 import {tr,trError,setLocale} from './i18n.js';
 import {paperHTML,paginate} from './paper.js';
 const params=new URLSearchParams(location.search),view=params.get('view')||'booklet',token=params.get('token');
@@ -13,9 +13,11 @@ async function init(){
   if(!res.ok)throw Error(p.error);if(p.status==='draft')throw Error('Approve every package before printing.');packages.push(p);
  }
  const zh=packages[0].config.language==='zh';setLocale(zh?'zh':'en',false);document.documentElement.lang=zh?'zh-CN':'en';
+ addNativeBack(zh?'返回':'Back');
  document.title=`PAPER-AI-${view}`;document.querySelector('#print-title').textContent=packages.map(p=>p.id).join(' · ');
  if(zh){document.querySelector('#print-button').textContent='打印 / 保存 PDF';document.querySelector('#export-pdf').textContent='一键下载 PDF';document.querySelector('#print-help').textContent='打印按钮不可用或无反应时按 Ctrl+P（Mac：Cmd+P）。若内容校验报错，请先修正再打印。';document.querySelector('.preview-note').textContent='A4 · 实际大小（100%）· 关闭浏览器页眉页脚。可在打印窗口保存为 PDF。';}
  const container=document.querySelector('#pages');
+ if(nativeBridge())document.querySelector('#print-help').textContent=zh?'通过系统打印选项保存或分享 PDF。':'Use the system print options to save or share a PDF.';
  for(const p of packages){const group=document.createElement('div');group.innerHTML=paperHTML(p,view);for(const page of group.children)page.dataset.package=p.id;container.append(...group.children);}
  await document.fonts.ready;paginate(container,packages,view);
  document.querySelector('#print-button').disabled=false;document.querySelector('#print-button').onclick=()=>printView();document.body.dataset.ready='1';
